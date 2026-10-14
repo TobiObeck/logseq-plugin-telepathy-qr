@@ -1,15 +1,18 @@
 /**
- * Reads the on-disk markdown for a page in a file based graph.
+ * Reads a page's markdown for export.
  *
- * Logseq stores file graph pages verbatim under `pages/<name>.md`, so we hand
- * the file to the QR encoder byte for byte instead of rebuilding markdown from
- * the block tree. Block uuids, `id::` properties and collapsed markers all
- * survive untouched, which is what we want when the scanned text is pasted
- * into another notes app.
+ * Two strategies, in order:
  *
- * Journals live in `journals/` rather than `pages/`, and Logseq's filename
- * escaping has varied between releases, so several spellings are tried and the
- * graph's file listing is used as a backstop.
+ * 1. The raw file from the graph directory. This is preferred because it is
+ *    the page exactly as Logseq stores it, artifacts and all. It needs a
+ *    reachable URL, which is not always available: `logseq.Assets.makeUrl`
+ *    hands back an asset scheme that some host versions refuse to fetch, so a
+ *    plain `file://` URL built from the graph path is tried as well.
+ *
+ * 2. The block tree, reassembled into markdown. This always works because it
+ *    only uses the everyday editor API. It is not byte identical to the file:
+ *    raw content markers survive, but page level properties and the original
+ *    ordering of some metadata may not come through unchanged.
  */
 
 const GRAPH_ROOTS = ['pages', 'journals'] as const
@@ -49,11 +52,12 @@ const pathCandidates = (pageName: string): string[] => {
   return paths
 }
 
+const describe = (error: unknown): string =>
+  error instanceof Error ? error.message : String(error)
+
 /**
- * Reads a URL as text. The asset scheme Logseq hands back is not fetchable
- * from every host version, so XMLHttpRequest and the plugin Request API are
- * kept as fallbacks. Failures are collected rather than thrown so the caller
- * can report what actually went wrong.
+ * Reads any URL as text, trying `fetch` first and falling back to
+ * XMLHttpRequest, since the asset scheme is not fetchable everywhere.
  */
 const readViaUrl = async (url: string): Promise<string> => {
   const failures: string[] = []
@@ -61,9 +65,9 @@ const readViaUrl = async (url: string): Promise<string> => {
   try {
     const response = await fetch(url)
     if (response.ok) return await response.text()
-    failures.push(`fetch: HTTP ${response.status}`)
+    failures.push(`HTTP ${response.status}`)
   } catch (error) {
-    failures.push(`fetch: ${describe(error)}`)
+    failures.push(describe(error))
   }
 
   try {
@@ -71,7 +75,7 @@ const readViaUrl = async (url: string): Promise<string> => {
       const request = new XMLHttpRequest()
       request.open('GET', url, true)
       request.onload = () => {
-        if (request.status === 0 || request.status >= 200) {
+        if (request.status === 0 || request.status < 400) {
           resolve(request.responseText)
         } else {
           reject(new Error(`HTTP ${request.status}`))
@@ -81,114 +85,94 @@ const readViaUrl = async (url: string): Promise<string> => {
       request.send()
     })
   } catch (error) {
-    failures.push(`xhr: ${describe(error)}`)
+    failures.push(describe(error))
   }
 
   throw new Error(failures.join('; '))
 }
 
-const describe = (error: unknown): string =>
-  error instanceof Error ? error.message : String(error)
-
-const fetchText = async (relativePath: string): Promise<string> => {
-  const url = await logseq.Assets.makeUrl(relativePath)
-  return readViaUrl(url)
-}
-
-/**
- * Two paths refer to the same page if they match once every escaping
- * difference we know about is undone: the graph root, percent escapes, case,
- * the namespace separator and the extension.
- */
-const normalise = (path: string): string => {
-  const stripped = path
-    .replace(/^\/?(pages|journals)\//i, '')
-    .replace(/\.(md|org)$/i, '')
-
-  const decoded = (() => {
-    try {
-      return decodeURIComponent(stripped)
-    } catch {
-      return stripped
-    }
-  })()
-
-  return decoded
-    .replace(/\\/g, '/')
-    .replace(/__/g, '/')
-    .replace(/^\/+/, '')
-    .toLowerCase()
-}
-
-/**
- * `listFilesOfCurrentGraph` is typed as always returning an array but answers
- * `null` or `[]` on some host versions, and it only matches when the extension
- * filter is passed as an array, so several call shapes are attempted.
- */
-const listPageFiles = async (): Promise<string[]> => {
-  const shapes: unknown[] = [['md'], 'md', undefined]
-
-  for (const exts of shapes) {
-    try {
-      const files = await logseq.Assets.listFilesOfCurrentGraph(
-        exts as string[] | undefined,
-      )
-      if (!Array.isArray(files)) continue
-
-      const paths = files
-        .map((file) => (file as { path?: unknown }).path)
-        .filter(
-          (path): path is string =>
-            typeof path === 'string' &&
-            GRAPH_ROOTS.some((root) => path.startsWith(`${root}/`)),
-        )
-
-      if (paths.length > 0) return paths
-    } catch {
-      // try the next call shape
-    }
-  }
-  return []
-}
-
-/** Remembered hits, so repeated exports do not re-probe. */
-const resolvedPaths = new Map<string, string>()
-
-export const readPageMarkdown = async (pageName: string): Promise<string> => {
-  const cached = resolvedPaths.get(pageName)
-  if (cached !== undefined) {
-    try {
-      return await fetchText(cached)
-    } catch {
-      resolvedPaths.delete(pageName)
-    }
+/** `file://` URL for a graph relative path, used when makeUrl is unusable. */
+const fileUrl = async (relativePath: string): Promise<string> => {
+  const graph = await logseq.App.getCurrentGraph()
+  const root = typeof graph?.path === 'string' ? graph.path : undefined
+  if (root === undefined) {
+    throw new Error('no graph path')
   }
 
-  const candidates = pathCandidates(pageName)
+  const base = root.replace(/\\/g, '/').replace(/\/+$/, '')
+  const relative = relativePath.replace(/\\/g, '/').replace(/^\/+/, '')
+  return `file:///${base}/${relative}`
+}
+
+const readFromDisk = async (pageName: string): Promise<string | undefined> => {
   const attempts: string[] = []
 
-  for (const path of candidates) {
+  for (const path of pathCandidates(pageName)) {
     try {
-      const text = await fetchText(path)
-      resolvedPaths.set(pageName, path)
-      return text
-    } catch (error) {
-      attempts.push(`${path} -> ${describe(error)}`)
+      return await readViaUrl(await logseq.Assets.makeUrl(path))
+    } catch (assetError) {
+      try {
+        return await readViaUrl(await fileUrl(path))
+      } catch (fileError) {
+        attempts.push(`${path} -> asset: ${describe(assetError)} | file: ${describe(fileError)}`)
+      }
     }
   }
 
-  const target = normalise(`/${pageName}`)
-  const listing = await listPageFiles()
-  const match = listing.find((path) => normalise(path) === target)
-  if (match !== undefined) {
-    resolvedPaths.set(pageName, match)
-    return fetchText(match)
+  console.warn('[TelepathyQR] disk read failed:', attempts.slice(0, 3))
+  return undefined
+}
+
+/**
+ * Reassembles markdown from the block tree. Bullets are indented two spaces
+ * per level, which every markdown reader nests correctly. TODO/DO markers and
+ * collapse state are kept when Logseq exposes them.
+ */
+const renderBlocks = (blocks: unknown[], depth = 0): string[] => {
+  const lines: string[] = []
+  const indent = '  '.repeat(depth)
+
+  for (const block of blocks) {
+    if (typeof block !== 'object' || block === null) continue
+
+    const entity = block as Record<string, unknown>
+    // `original` is the unparsed source line and keeps markdown syntax such as
+    // [[links]] and ((refs)) intact; `content` is Logseq's parsed form.
+    const raw = entity['original'] ?? entity['content']
+    const body = typeof raw === 'string' ? raw.trim() : ''
+
+    const marker =
+      typeof entity['marker'] === 'string' ? entity['marker'] + ' ' : ''
+    const collapsed = entity['collapsed?'] === true ? '\ncollapsed:: true' : ''
+
+    if (body !== '' || collapsed !== '') {
+      lines.push(`${indent}- ${marker}${body}${collapsed}`)
+    }
+
+    const children = entity['children']
+    if (Array.isArray(children)) {
+      lines.push(...renderBlocks(children, body === '' && collapsed === '' ? depth : depth + 1))
+    }
   }
 
-  // Report the first couple of failures: whether the paths, the URL or the
-  // scheme is at fault decides what to fix next.
-  const detail = attempts.slice(0, 2).join(' | ') || 'no candidates'
-  throw new Error(
-    `could not read "${pageName}": tried ${candidates.length} paths, listed ${listing.length} files. ${detail}`,
-  )
+  return lines
+}
+
+const readFromBlocks = async (pageName: string): Promise<string> => {
+  const blocks = await logseq.Editor.getPageBlocksTree(pageName)
+  if (!Array.isArray(blocks)) {
+    throw new Error('the editor returned no block tree')
+  }
+
+  const lines = renderBlocks(blocks)
+  return lines.length > 0 ? lines.join('\n') + '\n' : ''
+}
+
+export const readPageMarkdown = async (pageName: string): Promise<string> => {
+  const fromDisk = await readFromDisk(pageName)
+  if (fromDisk !== undefined) return fromDisk
+
+  // The disk route is a bonus, not a requirement, so fall through to the block
+  // tree rather than reporting failure.
+  return readFromBlocks(pageName)
 }
