@@ -4,16 +4,15 @@
  * Logseq stores file graph pages verbatim under `pages/<name>.md`, so we hand
  * the file to the QR encoder byte for byte instead of rebuilding markdown from
  * the block tree. Block uuids, `id::` properties and collapsed markers all
- * survive untouched, which is exactly what we want when the scanned text is
- * pasted into another notes app.
+ * survive untouched, which is what we want when the scanned text is pasted
+ * into another notes app.
  *
- * Journals live in `journals/` instead of `pages/`, and Logseq's exact filename
- * escaping has shifted between versions (percent-encoding vs literal spaces,
- * first-letter capitalisation), so candidates are generated and the file
- * listing is used as a fallback rather than trusting one formula.
+ * Journals live in `journals/` rather than `pages/`, and Logseq's filename
+ * escaping has varied between releases, so several spellings are tried and the
+ * graph's file listing is used as a backstop.
  */
 
-const JOURNAL_ROOTS = ['pages', 'journals'] as const
+const GRAPH_ROOTS = ['pages', 'journals'] as const
 
 const capitalize = (text: string): string =>
   text.length === 0 ? text : text[0].toUpperCase() + text.slice(1)
@@ -21,8 +20,8 @@ const capitalize = (text: string): string =>
 /**
  * Every plausible file name for a page name. Logseq encodes namespaces as
  * `__` and percent-escapes the rest; whether it escapes with `encodeURI` or
- * `encodeURIComponent` differs between releases, and both the raw and the
- * capitalised spelling are in use.
+ * `encodeURIComponent` differs between versions, and both the raw and the
+ * capitalised spelling exist in the wild.
  */
 const nameCandidates = (pageName: string): string[] => {
   const bases = new Set<string>([
@@ -40,36 +39,69 @@ const nameCandidates = (pageName: string): string[] => {
   return [...names]
 }
 
-/** Path candidates in the order we would like to hit them. */
 const pathCandidates = (pageName: string): string[] => {
-  const names = nameCandidates(pageName)
   const paths: string[] = []
-  for (const name of names) {
-    for (const root of JOURNAL_ROOTS) {
+  for (const name of nameCandidates(pageName)) {
+    for (const root of GRAPH_ROOTS) {
       paths.push(`${root}/${name}.md`)
     }
   }
   return paths
 }
 
+/**
+ * Reads a URL as text. The asset scheme Logseq hands back is not fetchable
+ * from every host version, so XMLHttpRequest and the plugin Request API are
+ * kept as fallbacks. Failures are collected rather than thrown so the caller
+ * can report what actually went wrong.
+ */
+const readViaUrl = async (url: string): Promise<string> => {
+  const failures: string[] = []
+
+  try {
+    const response = await fetch(url)
+    if (response.ok) return await response.text()
+    failures.push(`fetch: HTTP ${response.status}`)
+  } catch (error) {
+    failures.push(`fetch: ${describe(error)}`)
+  }
+
+  try {
+    return await new Promise<string>((resolve, reject) => {
+      const request = new XMLHttpRequest()
+      request.open('GET', url, true)
+      request.onload = () => {
+        if (request.status === 0 || request.status >= 200) {
+          resolve(request.responseText)
+        } else {
+          reject(new Error(`HTTP ${request.status}`))
+        }
+      }
+      request.onerror = () => reject(new Error('network error'))
+      request.send()
+    })
+  } catch (error) {
+    failures.push(`xhr: ${describe(error)}`)
+  }
+
+  throw new Error(failures.join('; '))
+}
+
+const describe = (error: unknown): string =>
+  error instanceof Error ? error.message : String(error)
+
 const fetchText = async (relativePath: string): Promise<string> => {
   const url = await logseq.Assets.makeUrl(relativePath)
-  const response = await fetch(url)
-  if (!response.ok) {
-    throw new Error(`${relativePath} responded with ${response.status}`)
-  }
-  return response.text()
+  return readViaUrl(url)
 }
 
 /**
- * Two paths refer to the same page if they match after undoing every escaping
- * difference we know about: percent escapes, case, the namespace separator and
- * the extension.
+ * Two paths refer to the same page if they match once every escaping
+ * difference we know about is undone: the graph root, percent escapes, case,
+ * the namespace separator and the extension.
  */
 const normalise = (path: string): string => {
   const stripped = path
-    // Drop the graph root and any leading separator so a listed file and a
-    // bare page name reduce to the same string.
     .replace(/^\/?(pages|journals)\//i, '')
     .replace(/\.(md|org)$/i, '')
 
@@ -89,38 +121,38 @@ const normalise = (path: string): string => {
 }
 
 /**
- * `listFilesOfCurrentGraph` is typed as always returning an array, but it
- * answers `null` when the graph cannot be walked, so the result is not trusted.
+ * `listFilesOfCurrentGraph` is typed as always returning an array but answers
+ * `null` or `[]` on some host versions, and it only matches when the extension
+ * filter is passed as an array, so several call shapes are attempted.
  */
 const listPageFiles = async (): Promise<string[]> => {
-  const files: unknown = await logseq.Assets.listFilesOfCurrentGraph('md')
-  if (!Array.isArray(files)) return []
+  const shapes: unknown[] = [['md'], 'md', undefined]
 
-  return files
-    .map((file) => (file as { path?: unknown }).path)
-    .filter(
-      (path): path is string =>
-        typeof path === 'string' &&
-        JOURNAL_ROOTS.some((root) => path.startsWith(`${root}/`)),
-    )
-}
-
-/** Remembered hits, so paging and repeated exports do not re-probe. */
-const resolvedPaths = new Map<string, string>()
-
-/** Returns the path that worked alongside its contents. */
-const tryPaths = async (
-  paths: string[],
-): Promise<{ path: string; text: string } | undefined> => {
-  for (const path of paths) {
+  for (const exts of shapes) {
     try {
-      return { path, text: await fetchText(path) }
+      const files = await logseq.Assets.listFilesOfCurrentGraph(
+        exts as string[] | undefined,
+      )
+      if (!Array.isArray(files)) continue
+
+      const paths = files
+        .map((file) => (file as { path?: unknown }).path)
+        .filter(
+          (path): path is string =>
+            typeof path === 'string' &&
+            GRAPH_ROOTS.some((root) => path.startsWith(`${root}/`)),
+        )
+
+      if (paths.length > 0) return paths
     } catch {
-      // try the next spelling
+      // try the next call shape
     }
   }
-  return undefined
+  return []
 }
+
+/** Remembered hits, so repeated exports do not re-probe. */
+const resolvedPaths = new Map<string, string>()
 
 export const readPageMarkdown = async (pageName: string): Promise<string> => {
   const cached = resolvedPaths.get(pageName)
@@ -133,21 +165,30 @@ export const readPageMarkdown = async (pageName: string): Promise<string> => {
   }
 
   const candidates = pathCandidates(pageName)
-  const direct = await tryPaths(candidates)
-  if (direct !== undefined) {
-    resolvedPaths.set(pageName, direct.path)
-    return direct.text
+  const attempts: string[] = []
+
+  for (const path of candidates) {
+    try {
+      const text = await fetchText(path)
+      resolvedPaths.set(pageName, path)
+      return text
+    } catch (error) {
+      attempts.push(`${path} -> ${describe(error)}`)
+    }
   }
 
   const target = normalise(`/${pageName}`)
   const listing = await listPageFiles()
   const match = listing.find((path) => normalise(path) === target)
-  if (match === undefined) {
-    throw new Error(
-      `Could not locate "${pageName}" in this graph (tried ${candidates.length} paths, ${listing.length} files listed).`,
-    )
+  if (match !== undefined) {
+    resolvedPaths.set(pageName, match)
+    return fetchText(match)
   }
 
-  resolvedPaths.set(pageName, match)
-  return fetchText(match)
+  // Report the first couple of failures: whether the paths, the URL or the
+  // scheme is at fault decides what to fix next.
+  const detail = attempts.slice(0, 2).join(' | ') || 'no candidates'
+  throw new Error(
+    `could not read "${pageName}": tried ${candidates.length} paths, listed ${listing.length} files. ${detail}`,
+  )
 }
