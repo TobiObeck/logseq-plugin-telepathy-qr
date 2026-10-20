@@ -1,3 +1,5 @@
+import '@logseq/libs'
+
 /**
  * Reads a page's markdown for export.
  *
@@ -21,18 +23,13 @@ const capitalize = (text: string): string =>
   text.length === 0 ? text : text[0].toUpperCase() + text.slice(1)
 
 /**
- * Every plausible file name for a page name. Logseq encodes namespaces as
- * `__` and percent-escapes the rest; whether it escapes with `encodeURI` or
- * `encodeURIComponent` differs between versions, and both the raw and the
- * capitalised spelling exist in the wild.
+ * Every plausible file name for a page name; Logseq encodes namespaces as
+ * `__`. Percent-encoded variants are deliberately absent: `makeUrl` and
+ * `fileUrl` both encode on their own, so pre-encoded candidates end up double
+ * encoded and can never match a file on disk.
  */
 const nameCandidates = (pageName: string): string[] => {
-  const bases = new Set<string>([
-    encodeURI(pageName).replace(/%2F/gi, '__'),
-    encodeURIComponent(pageName).replace(/%2F/gi, '__'),
-    pageName.replace(/\//g, '__'),
-    pageName,
-  ])
+  const bases = new Set<string>([pageName.replace(/\//g, '__'), pageName])
 
   const names = new Set<string>()
   for (const base of bases) {
@@ -42,22 +39,16 @@ const nameCandidates = (pageName: string): string[] => {
   return [...names]
 }
 
-const pathCandidates = (pageName: string): string[] => {
-  const paths: string[] = []
-  for (const name of nameCandidates(pageName)) {
-    for (const root of GRAPH_ROOTS) {
-      paths.push(`${root}/${name}.md`)
-    }
-  }
-  return paths
-}
-
 const describe = (error: unknown): string =>
   error instanceof Error ? error.message : String(error)
 
 /**
  * Reads any URL as text, trying `fetch` first and falling back to
  * XMLHttpRequest, since the asset scheme is not fetchable everywhere.
+ *
+ * Failures are tagged: `network:` means the scheme or origin was refused
+ * (the route itself is unusable), a bare `HTTP n` means the route worked but
+ * the candidate path does not exist.
  */
 const readViaUrl = async (url: string): Promise<string> => {
   const failures: string[] = []
@@ -67,7 +58,7 @@ const readViaUrl = async (url: string): Promise<string> => {
     if (response.ok) return await response.text()
     failures.push(`HTTP ${response.status}`)
   } catch (error) {
-    failures.push(describe(error))
+    failures.push(`network: ${describe(error)}`)
   }
 
   try {
@@ -81,11 +72,11 @@ const readViaUrl = async (url: string): Promise<string> => {
           reject(new Error(`HTTP ${request.status}`))
         }
       }
-      request.onerror = () => reject(new Error('network error'))
+      request.onerror = () => reject(new Error('network: network error'))
       request.send()
     })
   } catch (error) {
-    failures.push(describe(error))
+    failures.push(`network: ${describe(error)}`)
   }
 
   throw new Error(failures.join('; '))
@@ -101,25 +92,64 @@ const fileUrl = async (relativePath: string): Promise<string> => {
 
   const base = root.replace(/\\/g, '/').replace(/\/+$/, '')
   const relative = relativePath.replace(/\\/g, '/').replace(/^\/+/, '')
-  return `file:///${base}/${relative}`
+  return encodeURI(`file:///${base}/${relative}`)
 }
 
+/**
+ * Route viability, probed once per plugin session. Many Logseq desktops
+ * refuse both `assets://` and `file://` from the plugin iframe; without this
+ * gate every export would fire dozens of doomed network requests (and fill
+ * the console with them) before falling back to the block tree.
+ */
+let assetSchemeUsable = true
+let fileSchemeUsable = true
+
+const isRouteFailure = (message: string): boolean =>
+  message.split('; ').every((part) => part.startsWith('network:'))
+
 const readFromDisk = async (pageName: string): Promise<string | undefined> => {
+  if (!assetSchemeUsable && !fileSchemeUsable) return undefined
+
+  const paths: string[] = []
+  for (const name of nameCandidates(pageName)) {
+    for (const root of GRAPH_ROOTS) {
+      paths.push(`${root}/${name}.md`)
+    }
+  }
+
   const attempts: string[] = []
 
-  for (const path of pathCandidates(pageName)) {
-    try {
-      return await readViaUrl(await logseq.Assets.makeUrl(path))
-    } catch (assetError) {
+  for (const path of paths) {
+    if (!assetSchemeUsable && !fileSchemeUsable) break
+
+    if (assetSchemeUsable) {
+      try {
+        return await readViaUrl(await logseq.Assets.makeUrl(path))
+      } catch (error) {
+        const message = describe(error)
+        if (isRouteFailure(message)) assetSchemeUsable = false
+        else attempts.push(`${path} -> asset: ${message}`)
+      }
+    }
+
+    if (fileSchemeUsable) {
       try {
         return await readViaUrl(await fileUrl(path))
-      } catch (fileError) {
-        attempts.push(`${path} -> asset: ${describe(assetError)} | file: ${describe(fileError)}`)
+      } catch (error) {
+        const message = describe(error)
+        if (isRouteFailure(message)) fileSchemeUsable = false
+        else attempts.push(`${path} -> file: ${message}`)
       }
     }
   }
 
-  console.warn('[TelepathyQR] disk read failed:', attempts.slice(0, 3))
+  if (attempts.length === 0) {
+    console.warn(
+      '[TelepathyQR] disk read unavailable in this environment (asset/file URLs refused); using the block tree reader.',
+    )
+  } else {
+    console.warn('[TelepathyQR] disk read failed:', attempts.slice(0, 3))
+  }
   return undefined
 }
 
@@ -173,6 +203,10 @@ export const readPageMarkdown = async (pageName: string): Promise<string> => {
   if (fromDisk !== undefined) return fromDisk
 
   // The disk route is a bonus, not a requirement, so fall through to the block
-  // tree rather than reporting failure.
-  return readFromBlocks(pageName)
+  // tree rather than reporting failure — but if that fails too, say why.
+  try {
+    return await readFromBlocks(pageName)
+  } catch (error) {
+    throw new Error(`no readable file on disk and the block tree failed: ${describe(error)}`)
+  }
 }

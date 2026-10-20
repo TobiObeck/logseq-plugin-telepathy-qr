@@ -1,7 +1,8 @@
 # TelepathyQR — Design Document
 
-Status: **agreed in grilling session (Q1–Q40), awaiting final sign-off before implementation.**
+Status: **agreed in grilling session (Q1–Q40), signed off; implementation in progress.**
 This document is the single source of truth for the v1 rework. Decisions are referenced as `(Qn)`.
+React components subscribe to the store with `useSelector` from `@xstate/store-react`.
 
 ---
 

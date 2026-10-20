@@ -1,0 +1,60 @@
+import { useCallback, useEffect } from 'react'
+import { useSelector } from '@xstate/store-react'
+import type { Host } from '../core/host'
+import { cancelActiveGeneration } from '../core/runner'
+import { telepathyStore } from '../core/store'
+import { ConfigStage } from './ConfigStage'
+import { QrStage } from './QrStage'
+
+/**
+ * The modal shell: dark backdrop, centered card, wizard stage switching, and
+ * the keyboard contract (Esc closes everywhere, arrows paginate on the QR
+ * stage only).
+ */
+export const App = ({ host }: { host: Host }) => {
+  const stage = useSelector(telepathyStore, (snapshot) => snapshot.context.stage)
+
+  const close = useCallback(() => {
+    cancelActiveGeneration()
+    telepathyStore.send({ type: 'close' })
+    host.close()
+  }, [host])
+
+  const back = useCallback(() => {
+    cancelActiveGeneration()
+    telepathyStore.send({ type: 'back' })
+  }, [])
+
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        close()
+        return
+      }
+      if (telepathyStore.getSnapshot().context.stage !== 'qr') return
+      if (event.key === 'ArrowRight') telepathyStore.send({ type: 'next' })
+      else if (event.key === 'ArrowLeft') telepathyStore.send({ type: 'prev' })
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [close])
+
+  return (
+    <div className="tq-backdrop" onClick={close}>
+      <div
+        className={`tq-card ${stage === 'config' ? 'tq-card-wide' : ''}`}
+        onClick={(event) => event.stopPropagation()}
+      >
+        {stage === 'qr' && (
+          <button type="button" className="tq-back" onClick={back}>
+            ← Options
+          </button>
+        )}
+        <button type="button" className="tq-close" aria-label="Close" onClick={close}>
+          ×
+        </button>
+        {stage === 'config' ? <ConfigStage /> : <QrStage />}
+      </div>
+    </div>
+  )
+}
