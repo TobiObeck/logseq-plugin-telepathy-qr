@@ -219,6 +219,18 @@ Events: `open`, `setOption`, `setPreviewSource`, `confirm`, `back`, `prev`, `nex
 `encodedCount < parts.length`; `confirm` resets parts/images/index; `back` preserves options and
 preview source; `close` resets to code defaults.
 
+**Slice composition (Zustand-style slices).** The context above is not one blob: it is composed
+from three slices, each owned by its own module together with the events that touch only it:
+
+- `config` slice — `options`, `previewSource` (events: `setOption`, `setPreviewSource`).
+- `session` slice — `sourceText`, `parts`, `qrImages`, `encodedCount`, `index`, `tab`,
+  `generating`, `error` (events: `open`, `generate`, `partEncoded`, `prev`, `next`, `setTab`).
+- `nav` slice — `stage` (events: stage transitions triggered by `generate`/`partEncoded`/`back`).
+
+The slices are merged into a single `createStore` instance at a small composition root; the few
+cross-slice rules (`partEncoded(0)` flips `stage` to `qr`; `close` resets every slice to code
+defaults) live in that composition root and are covered by the store tests.
+
 ---
 
 ## 8. Architecture layers
