@@ -154,7 +154,10 @@ Form: `![alt](path)`.
 - `{{embed ((uuid))}}` → `[embed: block reference]`
 - `{{embed [[Page]]}}` → `[embed: Page]` (Q13)
 - Resolve-to-content is the NTH feature (default depth 2 when it lands) (Q6, Q17).
-- Other macros (`{{renderer …}}` etc.) are untouched in v1 (not decided → not transformed).
+- Other macros (`{{query …}}`, `{{renderer …}}`) are untouched in v1 — **including wiki links
+  and refs inside them**: macro spans are protected from every rewrite (pinned by the
+  vault's `queries.md` fixture; added post-sign-off when the first real query page showed
+  that `{{query [[TODO]]}}` must not lose its brackets).
 
 ### 4.6 External links (Clean only)
 
@@ -277,10 +280,12 @@ Raw flavor returns this text untouched; Clean flavor transforms it (§4). The Co
 
 Vitest, pure-function and store tests; **no E2E** (Q8).
 
-- **Real fixtures** (user-pasted, Q14/Q21/Q26):
-  `test/fixtures/<slug>/input.md`, optional `options.json` (overrides), `expected.md`.
-  Optional `page-data.edn` / `page-ast.edn` beside them as human reference only (Logseq dev-mode
-  dumps; never parsed by tests).
+- **Vault fixtures**: `test/vault/` is a real, openable Logseq graph. `pages/*.md` are the
+  inputs — one feature group per file, plus `showcase.md` exercising everything at once.
+  `expected/<page>.md` is the agreed output under default options; option combinations live
+  in `options/<page>.<tag>.json` paired with `expected/<page>.<tag>.md`. Logseq-generated
+  directories (`logseq/`, `journals/`, `.recycle/`) are gitignored; pages may be authored or
+  edited in Logseq itself with the plugin loaded.
 - **Synthetic edge cases**: multibyte text at budget boundaries, single over-budget line
   hard-split, empty input, fenced code containing `[[…]]`/`id::`, `CANCELED` markers, bare vs
   markdown external links incl. `file:///`, alias forms, every placeholder form.

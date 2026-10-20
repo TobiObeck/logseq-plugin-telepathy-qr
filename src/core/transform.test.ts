@@ -10,26 +10,44 @@ const withOptions = (patch: Partial<ExportOptions>): ExportOptions => ({
   ...patch,
 })
 
-const fixturesRoot = resolve(fileURLToPath(new URL('.', import.meta.url)), '../../test/fixtures')
+const vaultRoot = resolve(fileURLToPath(new URL('.', import.meta.url)), '../../test/vault')
+const pagesDir = join(vaultRoot, 'pages')
+const expectedDir = join(vaultRoot, 'expected')
+const optionsDir = join(vaultRoot, 'options')
 
 /**
- * Real-world and hand-written fixtures: `input.md` in, `expected.md` out, with
- * an optional `options.json` overriding the defaults. New fixtures are picked
- * up automatically — paste a page, agree on the expected output, done.
+ * Fixtures live in a real, openable Logseq graph under `test/vault`:
+ * `pages/` holds the inputs (browsable and editable in actual Logseq with the
+ * plugin loaded), `expected/` the agreed outputs. A page's file name without
+ * `.md` is its stem; `expected/<stem>.md` is tested with default options, and
+ * every `options/<stem>.<tag>.json` pairs with `expected/<stem>.<tag>.md` for
+ * a non-default option combination.
  */
-describe('fixtures', () => {
-  for (const name of readdirSync(fixturesRoot)) {
-    const dir = join(fixturesRoot, name)
-    const input = readFileSync(join(dir, 'input.md'), 'utf8')
-    const expected = readFileSync(join(dir, 'expected.md'), 'utf8')
-    const optionsPath = join(dir, 'options.json')
-    const options = existsSync(optionsPath)
-      ? withOptions(JSON.parse(readFileSync(optionsPath, 'utf8')) as Partial<ExportOptions>)
-      : DEFAULT_OPTIONS
+describe('vault fixtures', () => {
+  for (const page of readdirSync(pagesDir)) {
+    if (!page.endsWith('.md')) continue
+    const stem = page.slice(0, -'.md'.length)
+    const input = readFileSync(join(pagesDir, page), 'utf8')
 
-    it(name, () => {
-      expect(transformMarkdown(input, options)).toBe(expected)
-    })
+    const defaultExpected = join(expectedDir, page)
+    if (existsSync(defaultExpected)) {
+      it(`${page} with default options`, () => {
+        expect(transformMarkdown(input, DEFAULT_OPTIONS)).toBe(readFileSync(defaultExpected, 'utf8'))
+      })
+    }
+
+    for (const optionsFile of readdirSync(optionsDir)) {
+      if (!optionsFile.startsWith(`${stem}.`) || !optionsFile.endsWith('.json')) continue
+      const tag = optionsFile.slice(stem.length + 1, -'.json'.length)
+      const options = withOptions(
+        JSON.parse(readFileSync(join(optionsDir, optionsFile), 'utf8')) as Partial<ExportOptions>,
+      )
+      it(`${page} with options tag ${tag}`, () => {
+        expect(transformMarkdown(input, options)).toBe(
+          readFileSync(join(expectedDir, `${stem}.${tag}.md`), 'utf8'),
+        )
+      })
+    }
   }
 })
 

@@ -1,0 +1,2 @@
+- {{query [[TODO]]}}
+- {{query (and (page-tags #work) (todo NOW))}}

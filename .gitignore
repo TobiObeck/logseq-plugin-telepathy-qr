@@ -26,3 +26,9 @@ dist-ssr
 
 references/**
 !references/.gitkeep.md
+
+# Logseq-generated content inside the test vault.
+# pages/, expected/ and options/ are committed on purpose.
+test/vault/logseq/
+test/vault/journals/
+test/vault/.recycle/

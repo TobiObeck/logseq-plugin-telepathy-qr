@@ -1,0 +1,4 @@
+- TODO draft the agenda [#A]
+- DONE book the room
+- CANCELED old format
+- WAITING on reply

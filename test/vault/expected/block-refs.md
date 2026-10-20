@@ -1,0 +1,1 @@
+- earlier thought [block reference] lives on

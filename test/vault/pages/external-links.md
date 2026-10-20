@@ -1,0 +1,2 @@
+- [the docs](https://example.com/docs) and bare https://example.com
+- local file file:///C:/notes/a.md bare

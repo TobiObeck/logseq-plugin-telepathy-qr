@@ -1,6 +1,6 @@
 - Kickoff notes
 id:: 6ad77db3-76d9-4132-bc22-27e2a1ac8fd9
-author:: Krext
+author:: Tobi Obeck
 	- TODO draft agenda [#A]
 	- DONE book room
 	- See [[Meeting Notes]] and [alias]([[Some Page]])

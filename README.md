@@ -52,15 +52,24 @@ pnpm test     # vitest: transformer, paginator, store, preview, layer boundary
 pnpm lint     # oxlint
 ```
 
-### Adding a real-world fixture
+### Fixtures: a real Logseq graph in the repo
 
-The transformer is tested against fixtures you can produce from your own graph:
+`test/vault/` is an openable Logseq graph that doubles as the fixture suite:
 
-1. Copy a page's markdown (the file in your graph's `pages/` folder, or select-all in
-   the page) into `test/fixtures/<slug>/input.md`.
-2. Write the expected transformed output to `test/fixtures/<slug>/expected.md`.
-3. Optionally add `options.json` with option overrides; defaults apply otherwise.
-4. Run `pnpm test` — the fixture is picked up automatically.
+- **Inputs**: `test/vault/pages/<name>.md` — one feature group per file
+  (`wiki-links`, `images`, `tasks`, `external-links`, `properties`, `code-fences`,
+  `queries`, `block-refs`, `block-embeds`), plus `showcase.md` with everything at once.
+- **Expected outputs**: `test/vault/expected/<name>.md` for the default options.
+- **Option combinations**: `test/vault/options/<name>.<tag>.json` paired with
+  `test/vault/expected/<name>.<tag>.md` (see `showcase.combined`, `showcase.raw`,
+  `tasks.checkbox`, `external-links.plain`).
+- `pnpm test` picks all of it up automatically.
+
+You can open `test/vault` as a graph in Logseq (with the plugin loaded from this repo) to
+check pages end-to-end — or to author new fixture pages in the Logseq UI and commit the
+resulting markdown. The directories Logseq generates (`logseq/`, `journals/`, `.recycle/`)
+are gitignored. Editing a fixture page in Logseq may add `id::` properties; re-run
+`pnpm test` and update the expected file accordingly — that round trip *is* the workflow.
 
 In **dev builds only**, the page menu also offers "(Dev) Copy block tree JSON", which
 copies the raw block tree of the current page to the clipboard for debugging the

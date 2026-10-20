@@ -1,5 +1,5 @@
 - Kickoff notes
-author:: Krext
+author:: Tobi Obeck
 	- TODO draft agenda [#A]
 	- DONE book room
 	- See Meeting Notes and alias

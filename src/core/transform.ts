@@ -16,6 +16,11 @@ const TASK_LINE = /^(\s*(?:[-*+]\s+)?)(TODO|DOING|NOW|LATER|WAITING|DONE|CANCELE
 
 const EMBED_BLOCK_REF = /\{\{embed\s+\(\(([^)]+)\)\)\s*\}\}/g
 const EMBED_PAGE = /\{\{embed\s+\[\[([^\]]+)\]\]\s*\}\}/g
+// Non-embed macros ({{query …}}, {{renderer …}}) are untouched in v1
+// (DESIGN.md §4.5), including any wiki links or refs inside them.
+const MACRO = /\{\{[^}]*\}\}/g
+// eslint-disable-next-line no-control-regex
+const MACRO_TOKEN = /\u0001(\d+)\u0001/g
 const BLOCK_REF = /\(\(([^)]+)\)\)/g
 const IMAGE = /!\[([^\]]*)\]\(([^)\s]+)\)/g
 const WIKI_ALIAS = /\[([^\]]*)\]\(\[\[([^\]]+)\]\]\)/g
@@ -34,6 +39,14 @@ const cleanLine = (line: string, options: ExportOptions): string => {
 
   out = out.replace(EMBED_BLOCK_REF, '[embed: block reference]')
   out = out.replace(EMBED_PAGE, '[embed: $1]')
+
+  // Protect non-embed macro spans from every rewrite below.
+  const macros: string[] = []
+  out = out.replace(MACRO, (match) => {
+    macros.push(match)
+    return `\u0001${macros.length - 1}\u0001`
+  })
+
   out = out.replace(BLOCK_REF, '[block reference]')
 
   out = out.replace(IMAGE, (_match, alt: string, path: string) => {
@@ -72,6 +85,8 @@ const cleanLine = (line: string, options: ExportOptions): string => {
     out = out.replace(BARE_EXTERNAL_URL, (url) => `[${url}](${url})`)
     out = out.replace(TOKEN, (_match, index: string) => protectedLinks[Number(index)])
   }
+
+  out = out.replace(MACRO_TOKEN, (_match, index: string) => macros[Number(index)])
 
   return out
 }

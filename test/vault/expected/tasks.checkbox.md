@@ -1,0 +1,4 @@
+- [ ] draft the agenda [#A]
+- [x] book the room
+- CANCELED old format
+- [ ] on reply

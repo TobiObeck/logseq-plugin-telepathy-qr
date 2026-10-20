@@ -1,0 +1,2 @@
+- [[Plain Page]] and [alias text]([[Other Page]])
+- nested [[Page/Child]] link
