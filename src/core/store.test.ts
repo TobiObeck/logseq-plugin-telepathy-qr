@@ -46,6 +46,18 @@ describe('export session store', () => {
     expect(context().index).toBe(1) // clamped at the last part
   })
 
+  it('prev on the first part returns to the config stage', () => {
+    telepathyStore.send({ type: 'open', sourceText: 'x\n' })
+    telepathyStore.send({ type: 'generate' })
+    telepathyStore.send({ type: 'partEncoded', index: 0, dataUrl: 'a' })
+    expect(context().stage).toBe('qr')
+
+    telepathyStore.send({ type: 'prev' })
+    expect(context().stage).toBe('config')
+    // The session survives the trip back: parts and options are kept.
+    expect(context().parts.length).toBe(1)
+  })
+
   it('back preserves options, close resets everything', () => {
     telepathyStore.send({ type: 'open', sourceText: 'x\n' })
     telepathyStore.send({ type: 'setOption', patch: { wikiLinks: 'marked' } })

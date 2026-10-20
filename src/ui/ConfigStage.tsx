@@ -1,4 +1,5 @@
 import { useSelector } from '@xstate/store-react'
+import { useRef, type UIEvent } from 'react'
 import { EXAMPLE_MD } from '../core/example'
 import type { ExportOptions } from '../core/options'
 import { startGeneration } from '../core/runner'
@@ -19,6 +20,26 @@ export const ConfigStage = () => {
 
   const input = ctx.previewSource === 'example' ? EXAMPLE_MD : (ctx.sourceText ?? '')
   const output = transformMarkdown(input, options)
+
+  // Input on top, output below, scrolling in lockstep: scrolling either panel
+  // copies its scrollTop to the other. The lock ref swallows the programmatic
+  // scroll event of the synced panel so the two handlers cannot feed each
+  // other into a loop.
+  const inputRef = useRef<HTMLPreElement>(null)
+  const outputRef = useRef<HTMLPreElement>(null)
+  const scrollLock = useRef<'input' | 'output' | null>(null)
+
+  const syncScroll =
+    (source: 'input' | 'output') => (event: UIEvent<HTMLPreElement>) => {
+      const other = source === 'input' ? 'output' : 'input'
+      if (scrollLock.current === other) {
+        scrollLock.current = null
+        return
+      }
+      scrollLock.current = source
+      const target = source === 'input' ? outputRef.current : inputRef.current
+      if (target !== null) target.scrollTop = event.currentTarget.scrollTop
+    }
 
   return (
     <>
@@ -115,18 +136,22 @@ export const ConfigStage = () => {
       <div className="tq-cols">
         <div className="tq-colwrap">
           <div className="tq-col-head">Input</div>
-          <pre className="tq-col">{input}</pre>
+          <pre className="tq-col" ref={inputRef} onScroll={syncScroll('input')}>
+            {input}
+          </pre>
         </div>
         <div className="tq-colwrap">
           <div className="tq-col-head">Output</div>
-          <pre className="tq-col">{output}</pre>
+          <pre className="tq-col" ref={outputRef} onScroll={syncScroll('output')}>
+            {output}
+          </pre>
         </div>
       </div>
 
       <div className="tq-footer">
         <button
           type="button"
-          className="tq-primary"
+          className="button is-primary"
           disabled={ctx.generating}
           onClick={() => startGeneration(telepathyStore)}
         >

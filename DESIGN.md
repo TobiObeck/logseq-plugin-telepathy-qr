@@ -44,10 +44,11 @@ Layout, top to bottom (Q35):
 1. **Option rows** (§3): Flavor row, then the nested Clean sub-settings (greyed out when Raw),
    including the refs/embeds row with its greyed Resolve option.
 2. **Preview source toggle**: segmented `Example | This page`, default `Example` (Q40).
-3. **Two scrollable columns** of equal height, monospace:
-   - left: the input markdown (static example snippet, or the real page's raw source),
-   - right: the transformed output for the current options, recomputed live on every option
-     change (transform is sub-millisecond string work; no debounce).
+3. **Two scrollable panels stacked vertically** (input on top, output below), monospace,
+   with **synchronized scrolling**: scrolling either panel scrolls the other by the same
+   amount. The input is the static example snippet or the real page's raw source; the
+   output is the transformed text for the current options, recomputed live on every
+   option change (transform is sub-millisecond string work; no debounce).
 4. Bottom-right: primary button **"Generate QR Code(s)"**; shows "Generating…" while part 1
    encodes (~35 ms), then navigates to the QR stage (Q38).
 5. Top-right: X close (closes the whole modal).
@@ -62,14 +63,21 @@ external md link, bare `https://` URL, `file:///` link, image with and without a
 
 - Segmented tabs at the top of the card: `QR | Text | Rendered` (Q23, Q37).
 - **QR tab**: centered card on a dark semi-transparent backdrop; QR as large as fits while the
-  card stays minimal; bottom flex row `prev | k / N (centered) | next`; top-left **"← Options"**
-  returns to the Config stage preserving option choices; top-right X close (Q2, Q34).
+  card stays minimal; bottom flex row `prev | k / N (centered) | next`; top-right X close
+  (Q2, Q34). The nav row is visible on **all three tabs**, with spelled-out labels; on page 1
+  the left button reads "← Back to config" and returns to the Config stage (post-sign-off
+  adjustment; it replaces the earlier top-left "← Options" button).
 - **Text tab**: exactly the string encoded in the currently displayed QR code (part `k`),
   scrollable monospace; updates in lockstep with pagination (Q39).
 - **Rendered tab**: the same part string rendered through the unified pipeline (§5).
 - Keyboard: `←`/`→` paginate (QR stage only; no-op while Next is disabled); `Esc` closes the
-  modal from either stage; backdrop click closes (Q2, Q34).
-- Both stages respect a max card size with internal scrolling (Q23, Q35).
+  modal from either stage; backdrop click closes (Q2, Q34). **Prev on page 1 returns to the
+  Config stage**, mirroring "← Options".
+- Both stages respect a max card size with internal scrolling (Q23, Q35). The card has a
+  FIXED width and height across stages and tabs, so no click ever moves the modal out from
+  under the mouse (post-sign-off adjustment 3).
+- Styling: Bulma plus `src/ui/styles.css`, both imported through Vite into the iframe
+  document; no template-string CSS, no `provideStyle` (post-sign-off adjustment 2).
 
 ### 2.4 Session lifecycle
 

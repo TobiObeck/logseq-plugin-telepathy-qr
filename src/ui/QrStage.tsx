@@ -1,5 +1,6 @@
 import { useSelector } from '@xstate/store-react'
 import { renderMarkdown } from '../core/preview'
+import { cancelActiveGeneration } from '../core/runner'
 import { telepathyStore } from '../core/store'
 import type { QrTab } from '../core/store'
 import { Segmented } from './Segmented'
@@ -40,28 +41,6 @@ export const QrStage = () => {
               <div className="tq-qr-placeholder" />
             )}
           </div>
-          <div className="tq-bottom">
-            <button
-              type="button"
-              className="tq-navbtn"
-              disabled={index === 0}
-              onClick={() => telepathyStore.send({ type: 'prev' })}
-            >
-              ← Prev
-            </button>
-            <span className="tq-counter">
-              {index + 1} / {parts.length}
-            </span>
-            <button
-              type="button"
-              className="tq-navbtn"
-              disabled={encoding || index >= parts.length - 1}
-              onClick={() => telepathyStore.send({ type: 'next' })}
-            >
-              {encoding && <span className="tq-spinner" aria-hidden="true" />}
-              Next →
-            </button>
-          </div>
         </div>
       )}
 
@@ -75,6 +54,33 @@ export const QrStage = () => {
           dangerouslySetInnerHTML={{ __html: renderMarkdown(part) }}
         />
       )}
+
+      <div className="tq-bottom">
+        <button
+          type="button"
+          className="button is-small tq-navbtn"
+          onClick={() => {
+            // Prev on the first part returns to the Config stage; a
+            // generation still running must not write into it.
+            if (index === 0) cancelActiveGeneration()
+            telepathyStore.send({ type: 'prev' })
+          }}
+        >
+          {index === 0 ? '← Back to config' : '← Previous'}
+        </button>
+        <span className="tq-counter">
+          {index + 1} / {parts.length}
+        </span>
+        <button
+          type="button"
+          className="button is-small tq-navbtn"
+          disabled={encoding || index >= parts.length - 1}
+          onClick={() => telepathyStore.send({ type: 'next' })}
+        >
+          {encoding && <span className="tq-spinner" aria-hidden="true" />}
+          Next →
+        </button>
+      </div>
     </>
   )
 }

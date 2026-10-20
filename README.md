@@ -8,13 +8,14 @@ Telepathy for your notes: no cloud, no sync, just light.
 Open any page, choose **"Export page as QR code"** from the page menu (the three-dot
 menu at the top right of a page). A two-stage wizard opens:
 
-1. **Config stage** — choose how the page should be transformed, with a live two-column
-   preview (example snippet or your real page on the left, transformed output on the
-   right). Press **Generate QR Code(s)**.
+1. **Config stage** — choose how the page should be transformed, with a live preview: input
+   on top, transformed output below, scrolling in sync (example snippet or your real page).
+   Press **Generate QR Code(s)**.
 2. **QR stage** — the first QR code appears immediately; the remaining parts encode in
    the background (the Next button shows a spinner until they are ready). Paginate with
-   the buttons or the arrow keys. The **Text** and **Rendered** tabs show exactly what
-   the currently displayed QR code encodes.
+   the buttons or the arrow keys; on page 1, "← Back to config" returns to the Config
+   stage. The **Text** and **Rendered** tabs show exactly what the currently displayed QR
+   code encodes.
 
 `← Options` returns to the Config stage with your choices intact; `Esc`, the × button or
 a click on the backdrop closes the modal.
@@ -70,7 +71,8 @@ block-tree reader. It is compiled out of release builds.
 - `src/core/` — pure TypeScript: options, Clean transformer, paginator, QR encoder,
   session store (`@xstate/store`, slice-composed), preview pipeline (unified/remark/rehype).
   No Logseq imports, ever.
-- `src/ui/` — the React modal wizard; depends only on `core`.
+- `src/ui/` — the React modal wizard; depends only on `core`. Styling is Bulma plus
+  `src/ui/styles.css`, imported through Vite into the plugin iframe document.
 - `src/platform/logseq/` — everything `@logseq/libs`: page reading (disk file with
   block-tree fallback), menu registration, host glue.
 

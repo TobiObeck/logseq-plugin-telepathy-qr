@@ -17,6 +17,9 @@ importers:
       '@xstate/store-react':
         specifier: ^2.1.0
         version: 2.1.0(react@19.3.0)
+      bulma:
+        specifier: ^1.0.4
+        version: 1.0.4
       qrcode:
         specifier: ^1.5.4
         version: 1.5.4
@@ -416,6 +419,9 @@ packages:
 
   bail@2.0.2:
     resolution: {integrity: sha512-0xO6mYd7JB2YesxDKplafRpsiOzPt9V02ddPCLbY1xYGPOX24NTyN50qnUxgCPcSoYMhKpAuBTjQoRZCAkUDRw==}
+
+  bulma@1.0.4:
+    resolution: {integrity: sha512-Ffb6YGXDiZYX3cqvSbHWqQ8+LkX6tVoTcZuVB3lm93sbAVXlO0D6QlOTMnV6g18gILpAXqkG2z9hf9z4hCjz2g==}
 
   camelcase@5.3.1:
     resolution: {integrity: sha512-L28STB170nwWS63UjtlEOE3dldQApaJXZkOI1uMFfzf3rRuPegHaHesyee+YxQ+W6SvRDQV6UrdOdRiR153wJg==}
@@ -1317,6 +1323,8 @@ snapshots:
   assertion-error@2.0.1: {}
 
   bail@2.0.2: {}
+
+  bulma@1.0.4: {}
 
   camelcase@5.3.1: {}
 

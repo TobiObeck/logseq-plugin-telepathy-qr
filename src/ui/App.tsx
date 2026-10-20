@@ -20,11 +20,6 @@ export const App = ({ host }: { host: Host }) => {
     host.close()
   }, [host])
 
-  const back = useCallback(() => {
-    cancelActiveGeneration()
-    telepathyStore.send({ type: 'back' })
-  }, [])
-
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
@@ -33,7 +28,12 @@ export const App = ({ host }: { host: Host }) => {
       }
       if (telepathyStore.getSnapshot().context.stage !== 'qr') return
       if (event.key === 'ArrowRight') telepathyStore.send({ type: 'next' })
-      else if (event.key === 'ArrowLeft') telepathyStore.send({ type: 'prev' })
+      else if (event.key === 'ArrowLeft') {
+        // Prev on the first part returns to the Config stage; a generation
+        // still running in the background must not write into it.
+        if (telepathyStore.getSnapshot().context.index === 0) cancelActiveGeneration()
+        telepathyStore.send({ type: 'prev' })
+      }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
@@ -41,18 +41,8 @@ export const App = ({ host }: { host: Host }) => {
 
   return (
     <div className="tq-backdrop" onClick={close}>
-      <div
-        className={`tq-card ${stage === 'config' ? 'tq-card-wide' : ''}`}
-        onClick={(event) => event.stopPropagation()}
-      >
-        {stage === 'qr' && (
-          <button type="button" className="tq-back" onClick={back}>
-            ← Options
-          </button>
-        )}
-        <button type="button" className="tq-close" aria-label="Close" onClick={close}>
-          ×
-        </button>
+      <div className="tq-card" onClick={(event) => event.stopPropagation()}>
+        <button type="button" className="delete tq-close" aria-label="Close" onClick={close} />
         {stage === 'config' ? <ConfigStage /> : <QrStage />}
       </div>
     </div>

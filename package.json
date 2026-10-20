@@ -20,6 +20,7 @@
     "@logseq/libs": "^0.2.3",
     "@xstate/store": "^4.3.0",
     "@xstate/store-react": "^2.1.0",
+    "bulma": "^1.0.4",
     "qrcode": "^1.5.4",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",

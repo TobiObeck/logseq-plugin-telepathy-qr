@@ -1,11 +1,12 @@
 import '@logseq/libs'
+import 'bulma/css/bulma.min.css'
+import '../../ui/styles.css'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import type { Host } from '../../core/host'
 import { cancelActiveGeneration } from '../../core/runner'
 import { telepathyStore } from '../../core/store'
 import { App } from '../../ui/App'
-import { PLUGIN_CSS } from '../../ui/styles'
 import { readPageMarkdown } from './readPage'
 
 /**
@@ -91,13 +92,10 @@ const main = (): void => {
       void logseq.hideMainUI()
     },
   })
-  // The modal lives inside the plugin iframe, so the CSS must go into the
-  // iframe document (provideStyle would inject into Logseq's own document,
-  // where none of our elements exist). The iframe itself is stretched over
-  // the whole viewport so the backdrop can cover the screen.
-  const style = document.createElement('style')
-  style.textContent = PLUGIN_CSS
-  document.head.appendChild(style)
+  // The modal lives inside the plugin iframe; Bulma and styles.css are
+  // imported above and therefore bundled into the iframe document by Vite.
+  // The iframe itself is stretched over the whole viewport so the backdrop
+  // can cover the screen.
   logseq.setMainUIInlineStyle({
     position: 'fixed',
     inset: '0',

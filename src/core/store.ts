@@ -137,7 +137,9 @@ export const telepathyStore = createStore({
       stage: event.index === 0 ? 'qr' : ctx.stage,
     }),
     back: (ctx): TelepathyContext => ({ ...ctx, stage: 'config' }),
-    prev: (ctx) => ({ ...ctx, ...sessionHandlers.prev(ctx) }),
+    // Cross-slice rule: prev on the first part is another way back to Config.
+    prev: (ctx): TelepathyContext =>
+      ctx.index === 0 ? { ...ctx, stage: 'config' } : { ...ctx, ...sessionHandlers.prev(ctx) },
     next: (ctx) => ({ ...ctx, ...sessionHandlers.next(ctx) }),
     setTab: (ctx, event: { tab: QrTab }) => ({ ...ctx, ...sessionHandlers.setTab(ctx, event) }),
     close: (): TelepathyContext => ({ ...initialConfig(), ...initialSession(), ...initialNav() }),
