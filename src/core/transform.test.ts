@@ -11,17 +11,20 @@ const withOptions = (patch: Partial<ExportOptions>): ExportOptions => ({
 })
 
 const vaultRoot = resolve(fileURLToPath(new URL('.', import.meta.url)), '../../test/vault')
+const testRoot = resolve(fileURLToPath(new URL('.', import.meta.url)), '../../test')
 const pagesDir = join(vaultRoot, 'pages')
-const expectedDir = join(vaultRoot, 'expected')
-const optionsDir = join(vaultRoot, 'options')
+const expectedDir = join(testRoot, 'expected')
+const optionsDir = join(testRoot, 'options')
 
 /**
- * Fixtures live in a real, openable Logseq graph under `test/vault`:
- * `pages/` holds the inputs (browsable and editable in actual Logseq with the
- * plugin loaded), `expected/` the agreed outputs. A page's file name without
- * `.md` is its stem; `expected/<stem>.md` is tested with default options, and
- * every `options/<stem>.<tag>.json` pairs with `expected/<stem>.<tag>.md` for
- * a non-default option combination.
+ * Fixtures live in a real, openable Logseq graph under `test/vault/pages/`
+ * (browsable and editable in actual Logseq with the plugin loaded). Expected
+ * outputs and option overrides live OUTSIDE the graph in `test/expected/` and
+ * `test/options/`: Logseq treats every markdown file inside a graph as a page,
+ * so keeping expected files out avoids duplicate-title skips and graph
+ * clutter. A page's file name without `.md` is its stem; `expected/<stem>.md`
+ * is tested with default options, and every `options/<stem>.<tag>.json` pairs
+ * with `expected/<stem>.<tag>.md` for a non-default option combination.
  */
 describe('vault fixtures', () => {
   for (const page of readdirSync(pagesDir)) {

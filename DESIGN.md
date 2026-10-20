@@ -282,10 +282,12 @@ Vitest, pure-function and store tests; **no E2E** (Q8).
 
 - **Vault fixtures**: `test/vault/` is a real, openable Logseq graph. `pages/*.md` are the
   inputs — one feature group per file, plus `showcase.md` exercising everything at once.
-  `expected/<page>.md` is the agreed output under default options; option combinations live
-  in `options/<page>.<tag>.json` paired with `expected/<page>.<tag>.md`. Logseq-generated
-  directories (`logseq/`, `journals/`, `.recycle/`) are gitignored; pages may be authored or
-  edited in Logseq itself with the plugin loaded.
+  `test/expected/<page>.md` is the agreed output under default options; option combinations
+  live in `test/options/<page>.<tag>.json` paired with `test/expected/<page>.<tag>.md`.
+  Expected files sit **outside** the graph (Logseq treats every markdown file inside a
+  graph as a page, so keeping them out avoids duplicate-title skips and clutter).
+  Logseq-generated directories (`logseq/`, `journals/`, `.recycle/`) are gitignored;
+  pages may be authored or edited in Logseq itself with the plugin loaded.
 - **Synthetic edge cases**: multibyte text at budget boundaries, single over-budget line
   hard-split, empty input, fenced code containing `[[…]]`/`id::`, `CANCELED` markers, bare vs
   markdown external links incl. `file:///`, alias forms, every placeholder form.
