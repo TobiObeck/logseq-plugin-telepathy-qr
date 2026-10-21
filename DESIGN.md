@@ -23,9 +23,12 @@ In v1 scope:
 - Vitest test suite with real-world fixtures; **no E2E** (Q8, Q21, Q26).
 - Three-layer architecture with an enforced Logseq boundary (Q28).
 - No `useSettingsSchema` in v1; defaults are code constants (Q15, Q22).
+- **Quick export** via keyboard shortcut (`Ctrl+Shift+Q`) with per-graph localStorage persistence
+  of the last-used options; the Config stage pre-selects saved values on reopen.
+- **Reset to defaults** link on the Config stage.
 
-Explicitly **not** in v1 (see §11): quick export + saved defaults, resolving refs/embeds,
-user-property rewriting, indent-width option, EC-level exposure, Obsidian/Roam ports.
+Explicitly **not** in v1 (see §11): resolving refs/embeds, user-property rewriting,
+indent-width option, EC-level exposure, Obsidian/Roam ports.
 
 ---
 
@@ -304,8 +307,9 @@ Vitest, pure-function and store tests; **no E2E** (Q8).
 
 ## 11. NTH & future features (booked, not built)
 
-1. **NTH — Quick export + saved defaults**: second page-menu entry skipping the Config stage;
-   introduces `useSettingsSchema`. (Q1, Q15, Q22)
+1. ~~**NTH — Quick export + saved defaults**~~: ✅ built (post-v1). Keyboard shortcut
+   (`Ctrl+Shift+Q` / `Cmd+Shift+Q`) as a named Logseq command; per-graph localStorage
+   persistence of last-used options; Config stage pre-selects saved values; reset link.
 2. **NTH — Resolve block refs & embeds**: enables the greyed option; default resolve depth 2;
    extends the dev capture tool for cross-page ref fixtures. (Q6, Q17, Q21)
 3. **Future — user-property rewrite** `key:: value` → `key: value`. (Q18)
@@ -313,6 +317,11 @@ Vitest, pure-function and store tests; **no E2E** (Q8).
 5. **Future (low priority) — expose EC level** (L/M/Q/H). (Q9)
 6. **Out of scope, seam only — Obsidian plugin / Roam browser extension** reusing `core` + `ui`.
    (Q28)
+7. **Future — focused bullet export**: export only the currently focused/visible bullet.
+8. **Future — context menu: select bullets**: right-click on blue highlight area to select
+   multiple bullets, export only those.
+9. **Future — context menu: bullet + children**: right-click on a bullet to export that
+   bullet and its entire subtree.
 
 ---
 

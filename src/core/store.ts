@@ -116,8 +116,12 @@ export type TelepathyContext = ConfigSlice & SessionSlice & NavSlice
 export const telepathyStore = createStore({
   context: { ...initialConfig(), ...initialSession(), ...initialNav() },
   on: {
-    open: (_ctx, event: { sourceText: string | null }): TelepathyContext => ({
+    open: (
+      _ctx,
+      event: { sourceText: string | null; savedOptions?: ExportOptions },
+    ): TelepathyContext => ({
       ...initialConfig(),
+      options: event.savedOptions ? { ...event.savedOptions } : { ...DEFAULT_OPTIONS },
       ...sessionHandlers.open(initialSession(), event),
       ...initialNav(),
     }),
@@ -130,6 +134,22 @@ export const telepathyStore = createStore({
       ...configHandlers.setPreviewSource(ctx, event),
     }),
     generate: (ctx) => ({ ...ctx, ...sessionHandlers.generate(ctx) }),
+    quickOpen: (
+      _ctx,
+      event: { sourceText: string; options: ExportOptions },
+    ): TelepathyContext => {
+      const config: ConfigSlice = { ...initialConfig(), options: event.options }
+      const session = sessionHandlers.generate({
+        ...initialSession(),
+        sourceText: event.sourceText,
+        ...config,
+      })
+      return { ...config, ...session, stage: 'qr' }
+    },
+    resetOptions: (ctx): TelepathyContext => ({
+      ...ctx,
+      options: { ...DEFAULT_OPTIONS },
+    }),
     partEncoded: (ctx, event: { index: number; dataUrl: string }): TelepathyContext => ({
       ...ctx,
       ...sessionHandlers.partEncoded(ctx, event),

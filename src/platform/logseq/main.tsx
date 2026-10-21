@@ -4,6 +4,8 @@ import '../../ui/styles.css'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import type { Host } from '../../core/host'
+import type { ExportOptions } from '../../core/options'
+import { DEFAULT_OPTIONS } from '../../core/options'
 import { cancelActiveGeneration } from '../../core/runner'
 import { telepathyStore } from '../../core/store'
 import { App } from '../../ui/App'
@@ -16,6 +18,44 @@ import { readPageMarkdown } from './readPage'
  */
 const MENU_LABEL = '📱 Export page as QR code'
 
+/** localStorage key prefix, suffixed with the graph path and ":options". */
+const STORAGE_PREFIX = 'telepathy-qr:'
+
+const graphPath = (): string | undefined => {
+  const g = logseq.App.getCurrentGraph()
+  if (typeof g === 'object' && g !== null && 'path' in g) {
+    const p = (g as { path?: unknown }).path
+    if (typeof p === 'string') return p
+  }
+  return undefined
+}
+
+const persistOptions = (options: ExportOptions): void => {
+  const gp = graphPath()
+  if (gp === undefined) return
+  try {
+    localStorage.setItem(`${STORAGE_PREFIX}${gp}:options`, JSON.stringify(options))
+  } catch {
+    // localStorage unavailable or full — silently ignore.
+  }
+}
+
+const loadSavedOptions = (): ExportOptions => {
+  const gp = graphPath()
+  try {
+    if (gp !== undefined) {
+      const raw = localStorage.getItem(`${STORAGE_PREFIX}${gp}:options`)
+      if (raw !== null) {
+        const parsed = JSON.parse(raw) as Partial<ExportOptions>
+        return { ...DEFAULT_OPTIONS, ...parsed }
+      }
+    }
+  } catch {
+    // Corrupt JSON — fall back to defaults.
+  }
+  return { ...DEFAULT_OPTIONS }
+}
+
 const host: Host = {
   close: () => {
     void logseq.hideMainUI()
@@ -23,6 +63,8 @@ const host: Host = {
   toast: (message, kind = 'info') => {
     void logseq.UI.showMsg(message, kind, { timeout: kind === 'error' ? 8000 : 4000 })
   },
+  persistOptions,
+  loadSavedOptions,
 }
 
 const currentPageName = async (): Promise<string | undefined> => {
@@ -60,8 +102,35 @@ const startExport = async (pageName?: string): Promise<void> => {
       return
     }
 
+    const gp = graphPath()
+    const savedOptions = gp !== undefined ? host.loadSavedOptions() : undefined
     const sourceText = await readPageMarkdown(name)
-    telepathyStore.send({ type: 'open', sourceText })
+    telepathyStore.send({ type: 'open', sourceText, savedOptions })
+    await logseq.showMainUI()
+  } catch (error) {
+    console.error('[TelepathyQR]', error)
+    const reason = error instanceof Error ? error.message : String(error)
+    host.toast(`TelepathyQR: could not read the page: ${reason}`, 'error')
+  }
+}
+
+const startQuickExport = async (): Promise<void> => {
+  try {
+    if (await isDbGraph()) {
+      host.toast('TelepathyQR: database graphs cannot be exported.', 'warning')
+      return
+    }
+
+    const name = await currentPageName()
+    if (name === undefined) {
+      host.toast('TelepathyQR: no current page to export.', 'warning')
+      return
+    }
+
+    const gp = graphPath()
+    const options = gp !== undefined ? host.loadSavedOptions() : DEFAULT_OPTIONS
+    const sourceText = await readPageMarkdown(name)
+    telepathyStore.send({ type: 'quickOpen', sourceText, options })
     await logseq.showMainUI()
   } catch (error) {
     console.error('[TelepathyQR]', error)
@@ -107,6 +176,12 @@ const main = (): void => {
   logseq.App.registerPageMenuItem(MENU_LABEL, (payload: { page: string }) => {
     void startExport(payload.page)
   })
+
+  logseq.App.registerCommandShortcut(
+    { binding: 'ctrl+shift+q', mac: 'cmd+shift+q' },
+    () => void startQuickExport(),
+    { label: 'TelepathyQR: Quick Export' },
+  )
 
   if (import.meta.env.DEV) {
     logseq.App.registerPageMenuItem('(Dev) Copy block tree JSON', () => {

@@ -43,7 +43,7 @@ export const App = ({ host }: { host: Host }) => {
     <div className="tq-backdrop" onClick={close}>
       <div className="tq-card" onClick={(event) => event.stopPropagation()}>
         <button type="button" className="delete tq-close" aria-label="Close" onClick={close} />
-        {stage === 'config' ? <ConfigStage /> : <QrStage />}
+        {stage === 'config' ? <ConfigStage host={host} /> : <QrStage />}
       </div>
     </div>
   )

@@ -273,3 +273,27 @@ body {
   font-size: 0.8rem;
   color: var(--tq-muted);
 }
+
+/* ----------------------------------------------------------- reset link */
+
+.tq-reset-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 0.375rem;
+}
+
+.tq-reset-link {
+  background: none;
+  border: none;
+  color: var(--tq-muted);
+  font-size: 0.75rem;
+  cursor: pointer;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  transition: color 0.15s, background 0.15s;
+}
+
+.tq-reset-link:hover {
+  color: var(--tq-text);
+  background: rgba(128, 128, 128, 0.1);
+}

@@ -81,4 +81,59 @@ describe('export session store', () => {
     expect(context().options).toEqual(DEFAULT_OPTIONS)
     expect(context().sourceText).toBe('y\n')
   })
+
+  /* ----------------------------------------- saved options / quick export */
+
+  it('open with savedOptions pre-selects them', () => {
+    const saved: typeof DEFAULT_OPTIONS = { ...DEFAULT_OPTIONS, wikiLinks: 'marked', tasks: 'checkbox' }
+    telepathyStore.send({ type: 'open', sourceText: 'x\n', savedOptions: saved })
+    expect(context().options.wikiLinks).toBe('marked')
+    expect(context().options.tasks).toBe('checkbox')
+    expect(context().stage).toBe('config')
+  })
+
+  it('open without savedOptions uses DEFAULT_OPTIONS', () => {
+    telepathyStore.send({ type: 'open', sourceText: 'x\n', savedOptions: undefined })
+    expect(context().options).toEqual(DEFAULT_OPTIONS)
+  })
+
+  it('quickOpen skips config and starts generating on qr', () => {
+    const opts: typeof DEFAULT_OPTIONS = { ...DEFAULT_OPTIONS, wikiLinks: 'marked' }
+    telepathyStore.send({ type: 'quickOpen', sourceText: 'hello\nworld\n', options: opts })
+    expect(context().stage).toBe('qr')
+    expect(context().options.wikiLinks).toBe('marked')
+    expect(context().generating).toBe(true)
+    expect(context().parts.length).toBeGreaterThanOrEqual(1)
+  })
+
+  it('quickOpen with defaults still generates', () => {
+    telepathyStore.send({ type: 'quickOpen', sourceText: 'a\n', options: DEFAULT_OPTIONS })
+    expect(context().stage).toBe('qr')
+    expect(context().options).toEqual(DEFAULT_OPTIONS)
+    expect(context().parts.length).toBeGreaterThanOrEqual(1)
+  })
+
+  it('resetOptions restores DEFAULT_OPTIONS', () => {
+    telepathyStore.send({ type: 'open', sourceText: 'x\n' })
+    telepathyStore.send({ type: 'setOption', patch: { wikiLinks: 'marked', flavor: 'raw' } })
+    expect(context().options.wikiLinks).toBe('marked')
+    expect(context().options.flavor).toBe('raw')
+
+    telepathyStore.send({ type: 'resetOptions' })
+    expect(context().options).toEqual(DEFAULT_OPTIONS)
+  })
+
+  it('resetOptions does not touch the session or stage', () => {
+    telepathyStore.send({ type: 'open', sourceText: 'x\n' })
+    telepathyStore.send({ type: 'setOption', patch: { wikiLinks: 'marked' } })
+    telepathyStore.send({ type: 'generate' })
+    telepathyStore.send({ type: 'partEncoded', index: 0, dataUrl: 'a' })
+    expect(context().stage).toBe('qr')
+    const preParts = context().parts.length
+
+    telepathyStore.send({ type: 'resetOptions' })
+    expect(context().stage).toBe('qr')
+    expect(context().parts.length).toBe(preParts)
+    expect(context().options).toEqual(DEFAULT_OPTIONS)
+  })
 })

@@ -1,7 +1,9 @@
 import { useSelector } from '@xstate/store-react'
 import { useRef, type UIEvent } from 'react'
+import type { Host } from '../core/host'
 import { EXAMPLE_MD } from '../core/example'
 import type { ExportOptions } from '../core/options'
+import { DEFAULT_OPTIONS } from '../core/options'
 import { startGeneration } from '../core/runner'
 import { telepathyStore } from '../core/store'
 import { transformMarkdown } from '../core/transform'
@@ -11,7 +13,7 @@ import { Segmented } from './Segmented'
  * Wizard step 1 (DESIGN.md §2.2): option rows on top, the Clean sub-settings
  * nested under them, then the two live preview columns and the confirm button.
  */
-export const ConfigStage = () => {
+export const ConfigStage = ({ host }: { host: Host }) => {
   const ctx = useSelector(telepathyStore, (snapshot) => snapshot.context)
   const options = ctx.options
   const raw = options.flavor === 'raw'
@@ -20,6 +22,17 @@ export const ConfigStage = () => {
 
   const input = ctx.previewSource === 'example' ? EXAMPLE_MD : (ctx.sourceText ?? '')
   const output = transformMarkdown(input, options)
+
+  const handleGenerate = () => {
+    host.persistOptions(ctx.options)
+    startGeneration(telepathyStore)
+  }
+
+  const handleReset = () => {
+    telepathyStore.send({ type: 'resetOptions' })
+    host.persistOptions(DEFAULT_OPTIONS)
+    host.toast('TelepathyQR: defaults restored.', 'success')
+  }
 
   // Input on top, output below, scrolling in lockstep: scrolling either panel
   // copies its scrollTop to the other. The lock ref swallows the programmatic
@@ -153,9 +166,14 @@ export const ConfigStage = () => {
           type="button"
           className="button is-primary"
           disabled={ctx.generating}
-          onClick={() => startGeneration(telepathyStore)}
+          onClick={handleGenerate}
         >
           {ctx.generating ? 'Generating…' : 'Generate QR Code(s)'}
+        </button>
+      </div>
+      <div className="tq-reset-row">
+        <button type="button" className="tq-reset-link" onClick={handleReset}>
+          Reset to defaults
         </button>
       </div>
     </>
