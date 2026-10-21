@@ -1,6 +1,6 @@
 # Spec: Quick Export + Saved Defaults
 
-**Status**: agreed, ready to implement  
+**Status**: implemented  
 **Parent**: DESIGN.md §11, NTH #1  
 **References**: (Q1, Q15, Q22)
 
@@ -16,7 +16,7 @@ Add a keyboard shortcut for quick export that skips the Config stage entirely, u
 
 ### 2.1 Page-menu entry (unchanged)
 
-The existing single entry `📱 Export page as QR code` opens the full Config → QR wizard. No second menu entry is added.
+The existing single entry ` Export page as QR code` opens the full Config → QR wizard. No second menu entry is added.
 
 ### 2.2 Quick export via keyboard shortcut
 
@@ -31,16 +31,7 @@ The existing single entry `📱 Export page as QR code` opens the full Config �
 - The next time the Config stage opens (regular page-menu entry), the dropdowns are pre-selected with the saved values.
 - Escape + reopen shows the saved state (it was never lost).
 
-### 2.4 Reset to defaults
-
-A small **Reset to defaults** link appears at the bottom of the Config stage (below the Generate button, right-aligned). Clicking it:
-1. Restores the UI to `DEFAULT_OPTIONS`.
-2. Clears the localStorage key for this graph.
-3. Shows a toast: `TelepathyQR: defaults restored.`
-
-The reset link is always visible.
-
-### 2.5 First use
+### 2.4 First use
 
 No saved options yet → quick export silently uses `DEFAULT_OPTIONS`. No warning toast.
 
@@ -52,21 +43,21 @@ No saved options yet → quick export silently uses `DEFAULT_OPTIONS`. No warnin
 
 Format: `telepathy-qr:<graph-path>:options`
 
-The graph path is obtained via `logseq.App.getCurrentGraph()` → `.path`. Example key:
+The graph path is obtained via `await logseq.App.getCurrentGraph()` → `.path` (the API returns a Promise). Example key:
 `telepathy-qr:C:/Users/Krext/OneDrive/Desktop/temp/April2023/roam_backups/roam:options`
 
 Value: JSON-encoded `ExportOptions` object.
 
 ### 3.2 Host interface
 
-Add two methods to `Host`:
+Add two async methods to `Host` (the Logseq implementation resolves the graph path internally):
 
 ```ts
 export interface Host {
   close: () => void
   toast: (message: string, kind?: 'info' | 'warning' | 'error' | 'success') => void
-  persistOptions: (options: ExportOptions, graphPath: string) => void
-  loadSavedOptions: (graphPath: string) => ExportOptions
+  persistOptions(options: ExportOptions): Promise<void>
+  loadSavedOptions(): Promise<ExportOptions>
 }
 ```
 
@@ -78,17 +69,17 @@ A no-op implementation is used for the example/preview path (returns `DEFAULT_OP
 
 ### 3.3 Persisting on generate
 
-When the user clicks **Generate QR Code(s)** on the Config stage, the platform layer calls `host.persistOptions(storeSnapshot.options, graphPath)`. This happens as a side effect in the `generate` handler in `main.tsx`, not as a store event.
+When the user clicks **Generate QR Code(s)** on the Config stage, `ConfigStage` calls `host.persistOptions(ctx.options)` (fire-and-forget, `void`), then `startGeneration(telepathyStore)`.
 
 ### 3.4 Quick export flow
 
 The shortcut triggers `startQuickExport`:
 
-1. Get current graph path. If unavailable, fall back to `DEFAULT_OPTIONS`.
-2. `const options = host.loadSavedOptions(graphPath)`.
-3. Read current page name (same guard as `startExport`).
-4. Read page markdown via `readPageMarkdown(name)`.
-5. Send store event `quickOpen({ sourceText, options })`.
+1. `const options = await host.loadSavedOptions()`.
+2. Read current page name (same guard as `startExport`).
+3. Read page markdown via `readPageMarkdown(name)`.
+4. Send store event `quickOpen({ sourceText, options })`.
+5. Call `startRunner(telepathyStore)` to begin QR encoding.
 6. Show the modal (`logseq.showMainUI()`).
 
 ### 3.5 Store changes
@@ -118,23 +109,15 @@ quickOpen: (_ctx, event: { sourceText: string; options: ExportOptions }): Telepa
 }
 ```
 
-**New `resetOptions` event** — restores code defaults:
-
-```ts
-resetOptions: (ctx): TelepathyContext => ({
-  ...ctx,
-  options: { ...DEFAULT_OPTIONS },
-})
-```
-
 ### 3.6 Shortcut registration
 
 In `main.tsx` `main()`:
 
 ```ts
 logseq.App.registerCommandShortcut(
-  { key: 'ctrl+shift+q', label: 'TelepathyQR: Quick Export', mac: 'cmd+shift+q' },
+  { binding: 'ctrl+shift+q', mac: 'cmd+shift+q' },
   () => void startQuickExport(),
+  { label: 'TelepathyQR: Quick Export' },
 )
 ```
 
@@ -145,7 +128,6 @@ logseq.App.registerCommandShortcut(
 ### 4.1 Config stage
 
 - Option dropdowns initialize with `store.options` (may be saved values).
-- **Reset link**: small right-aligned text link below the Generate button. Fires `resetOptions` + `host.persistOptions(DEFAULT_OPTIONS, graphPath)` + toast.
 
 ### 4.2 QR stage
 
@@ -160,7 +142,6 @@ No changes — the quick path lands here directly with all parts already encodin
 | First use (no saved options) | Quick export uses `DEFAULT_OPTIONS` silently. |
 | localStorage unavailable | Falls back to `DEFAULT_OPTIONS`; `persistOptions` is a no-op. |
 | Graph path unavailable | Falls back to `DEFAULT_OPTIONS`. |
-| User resets, then quick exports | Uses defaults until they visit Config and Generate again. |
 | Plugin reloaded (Logseq restart) | localStorage persists across restarts; saved options survive. |
 | DB graph | Both entry and shortcut reject with the existing warning toast. |
 | No current page | Both entry and shortcut reject with the existing warning toast. |
@@ -178,7 +159,6 @@ No changes — the quick path lands here directly with all parts already encodin
 | `loadSavedOptions for wrong graph returns defaults` | Different graph path → `DEFAULT_OPTIONS` |
 | `quickOpen event sets stage to qr immediately` | No config stage shown |
 | `quickOpen uses provided options, not defaults` | Saved options flow through to transform |
-| `resetOptions event restores DEFAULT_OPTIONS` | Store options reset |
 | `open with savedOptions pre-selects them` | Config stage initialized with saved values |
 | `open without savedOptions uses DEFAULT_OPTIONS` | Backward-compatible |
 
@@ -188,26 +168,22 @@ No new vault fixtures needed — the transformer is unchanged. The `showcase` pa
 
 ---
 
-## 7. Files to change
+## 7. Files changed
 
 | File | Change |
 |---|---|
 | `src/core/options.ts` | No change (defaults remain code constants). |
-| `src/core/store.ts` | Modify `open` to accept `savedOptions?`; add `quickOpen`, `resetOptions` events. |
-| `src/core/host.ts` | Add `persistOptions` and `loadSavedOptions` to `Host` interface. |
-| `src/platform/logseq/main.tsx` | Register shortcut command, implement host methods, add `startQuickExport`, persist on generate. |
-| `src/ui/ConfigStage.tsx` | Add Reset to defaults link, wire to `resetOptions` + `host.persistOptions`. |
-| `src/core/store.test.ts` | Tests for `quickOpen`, `resetOptions`, `open` with/without saved options, options loading. |
+| `src/core/store.ts` | Modify `open` to accept `savedOptions?`; add `quickOpen` event. |
+| `src/core/host.ts` | Add `persistOptions` and `loadSavedOptions` to `Host` interface (async). |
+| `src/core/runner.ts` | Extract `startRunner` from `startGeneration` so quick path can use it. |
+| `src/platform/logseq/main.tsx` | Register shortcut command, implement async host methods, add `startQuickExport`, persist on generate. |
+| `src/ui/ConfigStage.tsx` | Accept `host` prop; call `host.persistOptions` on generate. |
+| `src/core/store.test.ts` | Tests for `quickOpen`, `open` with/without saved options, options loading. |
 | `DESIGN.md` | Update §1 (moved from NTH to in-scope), update §11 (mark #1 as built), update §7 (Host interface). |
 
 ---
 
-## 8. Deferred to next grill session
+## 8. Out of scope
 
-| Feature | Notes |
-|---|---|
-| Focused bullet export | Export only the currently focused/visible bullet. Changes data source. |
-| Context menu: select bullets | Right-click on blue highlight area to select multiple bullets, export only those. |
-| Context menu: bullet + children | Right-click on a bullet to export that bullet and its entire subtree. |
-
-These change *what* is exported (the data source), not *how* it's exported. They are orthogonal to this feature.
+- **"Reset to defaults"** — deemed unnecessary; users can manually restore defaults by switching each option back. No UI control, no store event, no host method.
+- Focused bullet export, context menu select, context menu bullet+children — deferred to next grill session (change *what* is exported, not *how*).

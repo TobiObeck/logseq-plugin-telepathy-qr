@@ -25,9 +25,9 @@ In v1 scope:
 - No `useSettingsSchema` in v1; defaults are code constants (Q15, Q22).
 - **Quick export** via keyboard shortcut (`Ctrl+Shift+Q`) with per-graph localStorage persistence
   of the last-used options; the Config stage pre-selects saved values on reopen.
-- **Reset to defaults** link on the Config stage.
 
-Explicitly **not** in v1 (see §11): resolving refs/embeds, user-property rewriting,
+Explicitly **not** in scope (now or later): a "reset to defaults" control — users can
+manually restore defaults by switching each option back.
 indent-width option, EC-level exposure, Obsidian/Roam ports.
 
 ---

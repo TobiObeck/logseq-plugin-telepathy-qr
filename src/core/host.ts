@@ -9,7 +9,7 @@ export interface Host {
   /** Surface a transient message to the user. */
   toast(message: string, kind?: 'info' | 'success' | 'warning' | 'error'): void
   /** Persist the current export options for this graph. */
-  persistOptions(options: import('./options').ExportOptions): void
+  persistOptions(options: import('./options').ExportOptions): Promise<void>
   /** Read previously persisted options for this graph; falls back to defaults. */
-  loadSavedOptions(): import('./options').ExportOptions
+  loadSavedOptions(): Promise<import('./options').ExportOptions>
 }

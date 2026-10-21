@@ -3,7 +3,6 @@ import { useRef, type UIEvent } from 'react'
 import type { Host } from '../core/host'
 import { EXAMPLE_MD } from '../core/example'
 import type { ExportOptions } from '../core/options'
-import { DEFAULT_OPTIONS } from '../core/options'
 import { startGeneration } from '../core/runner'
 import { telepathyStore } from '../core/store'
 import { transformMarkdown } from '../core/transform'
@@ -24,14 +23,8 @@ export const ConfigStage = ({ host }: { host: Host }) => {
   const output = transformMarkdown(input, options)
 
   const handleGenerate = () => {
-    host.persistOptions(ctx.options)
+    void host.persistOptions(ctx.options)
     startGeneration(telepathyStore)
-  }
-
-  const handleReset = () => {
-    telepathyStore.send({ type: 'resetOptions' })
-    host.persistOptions(DEFAULT_OPTIONS)
-    host.toast('TelepathyQR: defaults restored.', 'success')
   }
 
   // Input on top, output below, scrolling in lockstep: scrolling either panel
@@ -169,11 +162,6 @@ export const ConfigStage = ({ host }: { host: Host }) => {
           onClick={handleGenerate}
         >
           {ctx.generating ? 'Generating…' : 'Generate QR Code(s)'}
-        </button>
-      </div>
-      <div className="tq-reset-row">
-        <button type="button" className="tq-reset-link" onClick={handleReset}>
-          Reset to defaults
         </button>
       </div>
     </>

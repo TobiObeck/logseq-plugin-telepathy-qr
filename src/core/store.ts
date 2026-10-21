@@ -146,10 +146,6 @@ export const telepathyStore = createStore({
       })
       return { ...config, ...session, stage: 'qr' }
     },
-    resetOptions: (ctx): TelepathyContext => ({
-      ...ctx,
-      options: { ...DEFAULT_OPTIONS },
-    }),
     partEncoded: (ctx, event: { index: number; dataUrl: string }): TelepathyContext => ({
       ...ctx,
       ...sessionHandlers.partEncoded(ctx, event),

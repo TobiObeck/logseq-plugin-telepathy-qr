@@ -112,28 +112,4 @@ describe('export session store', () => {
     expect(context().options).toEqual(DEFAULT_OPTIONS)
     expect(context().parts.length).toBeGreaterThanOrEqual(1)
   })
-
-  it('resetOptions restores DEFAULT_OPTIONS', () => {
-    telepathyStore.send({ type: 'open', sourceText: 'x\n' })
-    telepathyStore.send({ type: 'setOption', patch: { wikiLinks: 'marked', flavor: 'raw' } })
-    expect(context().options.wikiLinks).toBe('marked')
-    expect(context().options.flavor).toBe('raw')
-
-    telepathyStore.send({ type: 'resetOptions' })
-    expect(context().options).toEqual(DEFAULT_OPTIONS)
-  })
-
-  it('resetOptions does not touch the session or stage', () => {
-    telepathyStore.send({ type: 'open', sourceText: 'x\n' })
-    telepathyStore.send({ type: 'setOption', patch: { wikiLinks: 'marked' } })
-    telepathyStore.send({ type: 'generate' })
-    telepathyStore.send({ type: 'partEncoded', index: 0, dataUrl: 'a' })
-    expect(context().stage).toBe('qr')
-    const preParts = context().parts.length
-
-    telepathyStore.send({ type: 'resetOptions' })
-    expect(context().stage).toBe('qr')
-    expect(context().parts.length).toBe(preParts)
-    expect(context().options).toEqual(DEFAULT_OPTIONS)
-  })
 })

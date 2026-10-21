@@ -21,8 +21,8 @@ const MENU_LABEL = '📱 Export page as QR code'
 /** localStorage key prefix, suffixed with the graph path and ":options". */
 const STORAGE_PREFIX = 'telepathy-qr:'
 
-const graphPath = (): string | undefined => {
-  const g = logseq.App.getCurrentGraph()
+const graphPath = async (): Promise<string | undefined> => {
+  const g = await logseq.App.getCurrentGraph()
   if (typeof g === 'object' && g !== null && 'path' in g) {
     const p = (g as { path?: unknown }).path
     if (typeof p === 'string') return p
@@ -30,8 +30,8 @@ const graphPath = (): string | undefined => {
   return undefined
 }
 
-const persistOptions = (options: ExportOptions): void => {
-  const gp = graphPath()
+const persistOptions = async (options: ExportOptions): Promise<void> => {
+  const gp = await graphPath()
   if (gp === undefined) return
   try {
     localStorage.setItem(`${STORAGE_PREFIX}${gp}:options`, JSON.stringify(options))
@@ -40,8 +40,8 @@ const persistOptions = (options: ExportOptions): void => {
   }
 }
 
-const loadSavedOptions = (): ExportOptions => {
-  const gp = graphPath()
+const loadSavedOptions = async (): Promise<ExportOptions> => {
+  const gp = await graphPath()
   try {
     if (gp !== undefined) {
       const raw = localStorage.getItem(`${STORAGE_PREFIX}${gp}:options`)
@@ -102,8 +102,7 @@ const startExport = async (pageName?: string): Promise<void> => {
       return
     }
 
-    const gp = graphPath()
-    const savedOptions = gp !== undefined ? host.loadSavedOptions() : undefined
+    const savedOptions = await host.loadSavedOptions()
     const sourceText = await readPageMarkdown(name)
     telepathyStore.send({ type: 'open', sourceText, savedOptions })
     await logseq.showMainUI()
@@ -127,8 +126,7 @@ const startQuickExport = async (): Promise<void> => {
       return
     }
 
-    const gp = graphPath()
-    const options = gp !== undefined ? host.loadSavedOptions() : DEFAULT_OPTIONS
+    const options = await host.loadSavedOptions()
     const sourceText = await readPageMarkdown(name)
     telepathyStore.send({ type: 'quickOpen', sourceText, options })
     startRunner(telepathyStore)
