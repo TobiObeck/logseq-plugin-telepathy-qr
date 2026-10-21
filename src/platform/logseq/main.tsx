@@ -9,6 +9,7 @@ import { cancelActiveGeneration, startRunner } from '../../core/runner'
 import { telepathyStore } from '../../core/store'
 import { App } from '../../ui/App'
 import { readPageMarkdown } from './readPage'
+import { registerDevProbes } from './probe'
 
 /**
  * Menu label. The inline-SVG icon trial (DESIGN.md §1, Q29) failed — Logseq
@@ -188,6 +189,8 @@ const main = (): void => {
     logseq.App.registerPageMenuItem('(Dev) Copy block tree JSON', () => {
       void copyBlockTree()
     })
+    // Export-scope trial instrumentation (specs/export-scope.md §4).
+    registerDevProbes()
   }
 
   createRoot(document.getElementById('app')!).render(

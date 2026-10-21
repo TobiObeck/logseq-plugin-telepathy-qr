@@ -317,11 +317,19 @@ Vitest, pure-function and store tests; **no E2E** (Q8).
 5. **Future (low priority) — expose EC level** (L/M/Q/H). (Q9)
 6. **Out of scope, seam only — Obsidian plugin / Roam browser extension** reusing `core` + `ui`.
    (Q28)
-7. **Future — focused bullet export**: export only the currently focused/visible bullet.
-8. **Future — context menu: select bullets**: right-click on blue highlight area to select
-   multiple bullets, export only those.
-9. **Future — context menu: bullet + children**: right-click on a bullet to export that
-   bullet and its entire subtree.
+7. ~~**Future — focused bullet export**~~ + ~~**context menu: select bullets**~~ +
+   ~~**context menu: bullet + children**~~: merged into one design — see
+   `specs/export-scope.md` (**designed; live trial pending**). Zoom-view export
+   via a new "⚫ Export focused bullet as QR code" page-menu entry; a single
+   block-context-menu entry "📱 Export selected bullet(s) as QR code" covers
+   both multi-selection and bullet+children (right-clicking a bullet selects
+   it and its children); context-aware quick-export shortcut lands as
+   iteration 2 after a manual-check gate.
+8. **NTH — dynamic singular/plural** label for the selection context-menu
+   entry, if the legacy API ever supports per-invocation labels.
+9. **Far future — custom marker replacements**: generalize the `||marked||`
+   modes into user-configurable replace-prefix / replace-suffix input fields
+   (opinionated settings), persisted like other options.
 
 ---
 
