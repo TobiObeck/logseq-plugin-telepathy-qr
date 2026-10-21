@@ -6,7 +6,7 @@ import { createRoot } from 'react-dom/client'
 import type { Host } from '../../core/host'
 import type { ExportOptions } from '../../core/options'
 import { DEFAULT_OPTIONS } from '../../core/options'
-import { cancelActiveGeneration } from '../../core/runner'
+import { cancelActiveGeneration, startRunner } from '../../core/runner'
 import { telepathyStore } from '../../core/store'
 import { App } from '../../ui/App'
 import { readPageMarkdown } from './readPage'
@@ -131,6 +131,7 @@ const startQuickExport = async (): Promise<void> => {
     const options = gp !== undefined ? host.loadSavedOptions() : DEFAULT_OPTIONS
     const sourceText = await readPageMarkdown(name)
     telepathyStore.send({ type: 'quickOpen', sourceText, options })
+    startRunner(telepathyStore)
     await logseq.showMainUI()
   } catch (error) {
     console.error('[TelepathyQR]', error)

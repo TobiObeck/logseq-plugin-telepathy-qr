@@ -29,12 +29,17 @@ export class ExportRunner {
 
 let activeRunner: ExportRunner | null = null
 
-export const startGeneration = (store: TelepathyStore): void => {
-  store.send({ type: 'generate' })
+/** Start encoding the current session's parts (pure side-effect, no store event). */
+export const startRunner = (store: TelepathyStore): void => {
   const { parts } = store.getSnapshot().context
   activeRunner?.cancel()
   activeRunner = new ExportRunner()
   void activeRunner.run(store, parts)
+}
+
+export const startGeneration = (store: TelepathyStore): void => {
+  store.send({ type: 'generate' })
+  startRunner(store)
 }
 
 export const cancelActiveGeneration = (): void => {
