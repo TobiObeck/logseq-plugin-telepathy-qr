@@ -123,6 +123,32 @@ body {
   cursor: default;
 }
 
+.tq-hr-minimal {
+  margin: 0.125rem 0;
+  border: none;
+  border-top: 1px solid var(--tq-border);
+}
+
+.tq-header-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.375rem;
+}
+
+.tq-header-preview {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  flex-shrink: 0;
+}
+
+.tq-head-label {
+  flex: 1;
+  text-align: center;
+  margin-bottom: 0;
+}
+
 .tq-preview-toggle {
   margin: 0.625rem 0 0.375rem;
 }
@@ -149,6 +175,7 @@ body {
   font-size: 0.75rem;
   color: var(--tq-muted);
   margin-bottom: 0.25rem;
+  text-align: center;
 }
 
 .tq-col {

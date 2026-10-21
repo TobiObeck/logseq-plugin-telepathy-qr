@@ -127,27 +127,31 @@ export const ConfigStage = ({ host }: { host: Host }) => {
         </div>
       </div>
 
-      <div className="tq-opt-row tq-preview-toggle">
-        <span className="tq-opt-label">Preview</span>
-        <Segmented
-          value={ctx.previewSource}
-          onChange={(previewSource) => telepathyStore.send({ type: 'setPreviewSource', previewSource })}
-          choices={[
-            { value: 'example', label: 'Example' },
-            { value: 'page', label: 'This page' },
-          ]}
-        />
+      <hr className="tq-hr-minimal" />
+
+      <div className="tq-header-row">
+        <div className="tq-header-preview">
+          <span className="tq-opt-label">Preview</span>
+          <Segmented
+            value={ctx.previewSource}
+            onChange={(previewSource) => telepathyStore.send({ type: 'setPreviewSource', previewSource })}
+            choices={[
+              { value: 'example', label: 'Example' },
+              { value: 'page', label: 'This page' },
+            ]}
+          />
+        </div>
+        <div className="tq-col-head tq-head-label">Input</div>
       </div>
 
       <div className="tq-cols">
         <div className="tq-colwrap">
-          <div className="tq-col-head">Input</div>
           <pre className="tq-col" ref={inputRef} onScroll={syncScroll('input')}>
             {input}
           </pre>
         </div>
+        <div className="tq-col-head">Output</div>
         <div className="tq-colwrap">
-          <div className="tq-col-head">Output</div>
           <pre className="tq-col" ref={outputRef} onScroll={syncScroll('output')}>
             {output}
           </pre>
