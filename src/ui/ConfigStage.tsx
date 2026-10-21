@@ -142,6 +142,7 @@ export const ConfigStage = ({ host }: { host: Host }) => {
           />
         </div>
         <div className="tq-col-head tq-head-label">Input</div>
+        <div className="tq-header-spacer" aria-hidden="true" />
       </div>
 
       <div className="tq-cols">

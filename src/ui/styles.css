@@ -124,33 +124,36 @@ body {
 }
 
 .tq-hr-minimal {
-  margin: 0.125rem 0;
+  margin: 0.25rem 0;
   border: none;
   border-top: 1px solid var(--tq-border);
 }
 
 .tq-header-row {
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
   align-items: center;
-  gap: 0.5rem;
   margin-bottom: 0.375rem;
 }
+
+.tq-header-row > :nth-child(1) { justify-self: start; }
+.tq-header-row > :nth-child(2) { justify-self: center; }
+.tq-header-row > :nth-child(3) { justify-self: end; }
 
 .tq-header-preview {
   display: flex;
   align-items: center;
   gap: 0.625rem;
-  flex-shrink: 0;
 }
 
 .tq-head-label {
-  flex: 1;
-  text-align: center;
   margin-bottom: 0;
 }
 
-.tq-preview-toggle {
-  margin: 0.625rem 0 0.375rem;
+/* Empty third grid cell; keeps the centered "Input" label symmetric with
+   the "Output" label below (which spans the full panel width). */
+.tq-header-spacer {
+  width: 1px;
 }
 
 /* ------------------------------------------------------------- preview columns */
@@ -239,9 +242,15 @@ body {
   width: 100%;
 }
 
-.tq-bottom > :nth-child(1) { justify-self: start; }
-.tq-bottom > :nth-child(2) { justify-self: center; }
-.tq-bottom > :nth-child(3) { justify-self: end; }
+.tq-bottom > :nth-child(1) {
+  justify-self: start;
+}
+.tq-bottom > :nth-child(2) {
+  justify-self: center;
+}
+.tq-bottom > :nth-child(3) {
+  justify-self: end;
+}
 
 .tq-nav-placeholder {
   min-width: 92px;
