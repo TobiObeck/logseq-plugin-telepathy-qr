@@ -141,7 +141,7 @@ export const ConfigStage = ({ host }: { host: Host }) => {
             ]}
           />
         </div>
-        <div className="tq-col-head tq-head-label">Input</div>
+        <div className="tq-col-head tq-input-label">Input</div>
         <div className="tq-header-spacer" aria-hidden="true" />
       </div>
 
@@ -151,7 +151,7 @@ export const ConfigStage = ({ host }: { host: Host }) => {
             {input}
           </pre>
         </div>
-        <div className="tq-col-head">Output</div>
+        <div className="tq-col-head tq-output-label">Output</div>
         <div className="tq-colwrap">
           <pre className="tq-col" ref={outputRef} onScroll={syncScroll('output')}>
             {output}
