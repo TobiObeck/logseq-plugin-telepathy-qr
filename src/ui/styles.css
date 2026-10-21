@@ -30,6 +30,11 @@
   }
 }
 
+/* Bulma sets an opaque background-color on the root `html` element
+   (--bulma-body-background-color), which sits behind the plugin iframe and
+   defeats the translucent backdrop below. Keep both root elements transparent
+   so the `.tq-backdrop` scrim reads as semi-translucent over the graph. */
+html,
 body {
   margin: 0;
   background: transparent;
