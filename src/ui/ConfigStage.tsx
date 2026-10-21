@@ -23,7 +23,7 @@ export const ConfigStage = ({ host }: { host: Host }) => {
   const output = transformMarkdown(input, options)
 
   const handleGenerate = () => {
-    void host.persistOptions(ctx.options)
+    void host.persistConfig({ options: ctx.options, previewSource: ctx.previewSource })
     startGeneration(telepathyStore)
   }
 

@@ -1,4 +1,5 @@
 import { createStore } from '@xstate/store'
+import type { SavedConfig } from './host'
 import { DEFAULT_OPTIONS, type ExportOptions } from './options'
 import { paginate } from './paginate'
 import { transformMarkdown } from './transform'
@@ -118,10 +119,12 @@ export const telepathyStore = createStore({
   on: {
     open: (
       _ctx,
-      event: { sourceText: string | null; savedOptions?: ExportOptions },
+      event: { sourceText: string | null; savedConfig?: SavedConfig },
     ): TelepathyContext => ({
       ...initialConfig(),
-      options: event.savedOptions ? { ...event.savedOptions } : { ...DEFAULT_OPTIONS },
+      ...(event.savedConfig
+        ? { options: event.savedConfig.options, previewSource: event.savedConfig.previewSource }
+        : {}),
       ...sessionHandlers.open(initialSession(), event),
       ...initialNav(),
     }),
@@ -136,9 +139,12 @@ export const telepathyStore = createStore({
     generate: (ctx) => ({ ...ctx, ...sessionHandlers.generate(ctx) }),
     quickOpen: (
       _ctx,
-      event: { sourceText: string; options: ExportOptions },
+      event: { sourceText: string; config: SavedConfig },
     ): TelepathyContext => {
-      const config: ConfigSlice = { ...initialConfig(), options: event.options }
+      const config: ConfigSlice = {
+        options: event.config.options,
+        previewSource: event.config.previewSource,
+      }
       const session = sessionHandlers.generate({
         ...initialSession(),
         sourceText: event.sourceText,

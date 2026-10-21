@@ -3,8 +3,7 @@ import 'bulma/css/bulma.min.css'
 import '../../ui/styles.css'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import type { Host } from '../../core/host'
-import type { ExportOptions } from '../../core/options'
+import type { Host, SavedConfig } from '../../core/host'
 import { DEFAULT_OPTIONS } from '../../core/options'
 import { cancelActiveGeneration, startRunner } from '../../core/runner'
 import { telepathyStore } from '../../core/store'
@@ -30,30 +29,33 @@ const graphPath = async (): Promise<string | undefined> => {
   return undefined
 }
 
-const persistOptions = async (options: ExportOptions): Promise<void> => {
+const persistConfig = async (config: SavedConfig): Promise<void> => {
   const gp = await graphPath()
   if (gp === undefined) return
   try {
-    localStorage.setItem(`${STORAGE_PREFIX}${gp}:options`, JSON.stringify(options))
+    localStorage.setItem(`${STORAGE_PREFIX}${gp}:options`, JSON.stringify(config))
   } catch {
     // localStorage unavailable or full — silently ignore.
   }
 }
 
-const loadSavedOptions = async (): Promise<ExportOptions> => {
+const loadSavedConfig = async (): Promise<SavedConfig> => {
   const gp = await graphPath()
   try {
     if (gp !== undefined) {
       const raw = localStorage.getItem(`${STORAGE_PREFIX}${gp}:options`)
       if (raw !== null) {
-        const parsed = JSON.parse(raw) as Partial<ExportOptions>
-        return { ...DEFAULT_OPTIONS, ...parsed }
+        const parsed = JSON.parse(raw) as Partial<SavedConfig>
+        return {
+          options: { ...DEFAULT_OPTIONS, ...parsed.options },
+          previewSource: parsed.previewSource ?? 'example',
+        }
       }
     }
   } catch {
     // Corrupt JSON — fall back to defaults.
   }
-  return { ...DEFAULT_OPTIONS }
+  return { options: { ...DEFAULT_OPTIONS }, previewSource: 'example' }
 }
 
 const host: Host = {
@@ -63,8 +65,8 @@ const host: Host = {
   toast: (message, kind = 'info') => {
     void logseq.UI.showMsg(message, kind, { timeout: kind === 'error' ? 8000 : 4000 })
   },
-  persistOptions,
-  loadSavedOptions,
+  persistConfig,
+  loadSavedConfig,
 }
 
 const currentPageName = async (): Promise<string | undefined> => {
@@ -102,9 +104,9 @@ const startExport = async (pageName?: string): Promise<void> => {
       return
     }
 
-    const savedOptions = await host.loadSavedOptions()
+    const savedConfig = await host.loadSavedConfig()
     const sourceText = await readPageMarkdown(name)
-    telepathyStore.send({ type: 'open', sourceText, savedOptions })
+    telepathyStore.send({ type: 'open', sourceText, savedConfig })
     await logseq.showMainUI()
   } catch (error) {
     console.error('[TelepathyQR]', error)
@@ -126,9 +128,9 @@ const startQuickExport = async (): Promise<void> => {
       return
     }
 
-    const options = await host.loadSavedOptions()
+    const config = await host.loadSavedConfig()
     const sourceText = await readPageMarkdown(name)
-    telepathyStore.send({ type: 'quickOpen', sourceText, options })
+    telepathyStore.send({ type: 'quickOpen', sourceText, config })
     startRunner(telepathyStore)
     await logseq.showMainUI()
   } catch (error) {

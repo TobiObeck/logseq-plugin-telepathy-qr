@@ -71,15 +71,17 @@ export const QrStage = () => {
         <span className="tq-counter">
           {index + 1} / {parts.length}
         </span>
-        <button
-          type="button"
-          className="button is-small tq-navbtn"
-          disabled={encoding || index >= parts.length - 1}
-          onClick={() => telepathyStore.send({ type: 'next' })}
-        >
-          {encoding && <span className="tq-spinner" aria-hidden="true" />}
-          Next →
-        </button>
+        {index < parts.length - 1 && (
+          <button
+            type="button"
+            className="button is-small tq-navbtn"
+            disabled={encoding}
+            onClick={() => telepathyStore.send({ type: 'next' })}
+          >
+            {encoding && <span className="tq-spinner" aria-hidden="true" />}
+            Next →
+          </button>
+        )}
       </div>
     </>
   )

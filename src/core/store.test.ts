@@ -1,8 +1,14 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import { DEFAULT_OPTIONS } from './options'
+import type { SavedConfig } from './host'
+import { DEFAULT_OPTIONS, type ExportOptions } from './options'
 import { telepathyStore } from './store'
 
 const context = () => telepathyStore.getSnapshot().context
+
+const savedCfg = (patch: { options?: Partial<ExportOptions>; previewSource?: 'example' | 'page' }): SavedConfig => ({
+  options: { ...DEFAULT_OPTIONS, ...patch.options },
+  previewSource: patch.previewSource ?? 'example',
+})
 
 beforeEach(() => {
   telepathyStore.send({ type: 'close' })
@@ -82,24 +88,26 @@ describe('export session store', () => {
     expect(context().sourceText).toBe('y\n')
   })
 
-  /* ----------------------------------------- saved options / quick export */
+  /* -------------------------------------- saved config / quick export */
 
-  it('open with savedOptions pre-selects them', () => {
-    const saved: typeof DEFAULT_OPTIONS = { ...DEFAULT_OPTIONS, wikiLinks: 'marked', tasks: 'checkbox' }
-    telepathyStore.send({ type: 'open', sourceText: 'x\n', savedOptions: saved })
+  it('open with savedConfig pre-selects options and previewSource', () => {
+    const saved = savedCfg({ options: { wikiLinks: 'marked', tasks: 'checkbox' }, previewSource: 'page' })
+    telepathyStore.send({ type: 'open', sourceText: 'x\n', savedConfig: saved })
     expect(context().options.wikiLinks).toBe('marked')
     expect(context().options.tasks).toBe('checkbox')
+    expect(context().previewSource).toBe('page')
     expect(context().stage).toBe('config')
   })
 
-  it('open without savedOptions uses DEFAULT_OPTIONS', () => {
-    telepathyStore.send({ type: 'open', sourceText: 'x\n', savedOptions: undefined })
+  it('open without savedConfig uses DEFAULT_OPTIONS and example preview', () => {
+    telepathyStore.send({ type: 'open', sourceText: 'x\n', savedConfig: undefined })
     expect(context().options).toEqual(DEFAULT_OPTIONS)
+    expect(context().previewSource).toBe('example')
   })
 
   it('quickOpen skips config and starts generating on qr', () => {
-    const opts: typeof DEFAULT_OPTIONS = { ...DEFAULT_OPTIONS, wikiLinks: 'marked' }
-    telepathyStore.send({ type: 'quickOpen', sourceText: 'hello\nworld\n', options: opts })
+    const cfg = savedCfg({ options: { wikiLinks: 'marked' } })
+    telepathyStore.send({ type: 'quickOpen', sourceText: 'hello\nworld\n', config: cfg })
     expect(context().stage).toBe('qr')
     expect(context().options.wikiLinks).toBe('marked')
     expect(context().generating).toBe(true)
@@ -107,7 +115,8 @@ describe('export session store', () => {
   })
 
   it('quickOpen with defaults still generates', () => {
-    telepathyStore.send({ type: 'quickOpen', sourceText: 'a\n', options: DEFAULT_OPTIONS })
+    const cfg = savedCfg({})
+    telepathyStore.send({ type: 'quickOpen', sourceText: 'a\n', config: cfg })
     expect(context().stage).toBe('qr')
     expect(context().options).toEqual(DEFAULT_OPTIONS)
     expect(context().parts.length).toBeGreaterThanOrEqual(1)
