@@ -71,7 +71,7 @@ export const QrStage = () => {
         <span className="tq-counter">
           {index + 1} / {parts.length}
         </span>
-        {index < parts.length - 1 && (
+        {index < parts.length - 1 ? (
           <button
             type="button"
             className="button is-small tq-navbtn"
@@ -81,6 +81,8 @@ export const QrStage = () => {
             {encoding && <span className="tq-spinner" aria-hidden="true" />}
             Next →
           </button>
+        ) : (
+          <span className="tq-nav-placeholder" aria-hidden="true" />
         )}
       </div>
     </>

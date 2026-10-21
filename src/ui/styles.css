@@ -206,9 +206,18 @@ body {
 }
 
 .tq-bottom {
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
   align-items: center;
   width: 100%;
+}
+
+.tq-bottom > :nth-child(1) { justify-self: start; }
+.tq-bottom > :nth-child(2) { justify-self: center; }
+.tq-bottom > :nth-child(3) { justify-self: end; }
+
+.tq-nav-placeholder {
+  min-width: 92px;
 }
 
 .tq-navbtn {
