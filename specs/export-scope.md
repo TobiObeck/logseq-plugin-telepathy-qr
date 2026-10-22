@@ -302,7 +302,9 @@ through store events, not the Host. (Keeps `core`/`ui` free of Logseq types.)
 | 29 | Decision A: no new option for Logseq-only markers. Clean removes them, Raw keeps everything. Known flaw (C): Clean still passes `SCHEDULED:` / `DEADLINE:` lines and `:LOGBOOK:` drawers through; fix by extending the Clean ruleset, not by adding an option. Documented in DESIGN.md §4.1a. |
 | 30 | Refs and embeds resolve two levels deep, hard-coded (`REF_DEPTH = 2`). `refs: resolve` is enabled and is the default; saved configs keep their saved `refs` value. Interpretation: "block embed & page refs" = `{{embed ((uuid))}}`, `{{embed [[Page]]}}`, and bare `((uuid))`. Plain `[[page]]` links remain governed by the wiki-links option. |
 | 31 | Empty exports never reach the QR stage. The entry points toast "nothing to export" for an empty source. The Config stage disables Generate with "Export is empty — check your options" when the chosen options produce nothing. The store encodes no parts for empty output. |
-
+| 32 | Clean drops every `logseq.*` property line. The `logseq.` namespace joins the internal-property prefixes, and the property-key pattern accepts dots, so `logseq.order-list-type` is recognised at all. Raw keeps everything (Q1, Q3). |
+| 33 | "Numbered lists" is a Clean sub-setting with two choices: Bullets and Numbered (default). Both drop the property line. The "keep" choice was removed, since Raw is the only flavour that preserves Logseq properties. This supersedes SQ29 for numbering only (Q2). |
+| 34 | Numbered runs start at 1 and restart after a non-numbered sibling. The marker cycles with depth in numbered ancestors: `1.`, `a.`, `I.`, `1.`. Letters and Roman numerals are plain text, since markdown has no such lists. Nested numbered children cycle the same way, not stay bullets (user choice). |
 ## 12. NTH & far-future bookings from this session
 
 - **NTH — dynamic singular/plural** context-menu label ("Export selected

@@ -105,6 +105,7 @@ greyed/disabled when Raw is selected (Q11, Q17).
 | 4 | Tasks | **Logseq markers** \| Markdown checkboxes | Clean only (Q17, Q19) |
 | 5 | External links | **Markdown** \| Plain URL | Clean only (Q20, Q27, Q33) |
 | 6 | Refs/embeds | **Resolve** \| Strip placeholder | Clean only; Resolve expands block refs and embeds two levels deep, hard-coded (Q6, Q17, SQ30) |
+| 7 | Numbered lists | **Numbered** \| Bullets | Clean only; numbered children drop Logseq's property line and get `1.`, `a.`, `I.` by depth (SQ33, SQ34) |
 
 ---
 
@@ -119,7 +120,7 @@ re-wrapping, no heading invention (Q12).
 A property line matches `key:: value` on its own line (any indentation).
 
 - **Internal keys are dropped**: `id`, `collapsed`, `background-color`, `custom_id`, `macro_id`,
-  `hl-*` (highlights), `card-*` (spaced repetition). Held as one named, tested constant; the list
+  `hl-*` (highlights), `card-*` (spaced repetition), `logseq.*` (Logseq's own namespace, SQ32). Held as one named, tested constant; the list
   may grow later (Q12).
 - **User property lines are kept verbatim** in v1; the `key:: → key:` rewrite is a future feature
   (Q18).
@@ -136,7 +137,15 @@ A property line matches `key:: value` on its own line (any indentation).
 
 **Known flaw (not yet fixed):** Clean does not remove scheduling lines (`SCHEDULED:` /
 `DEADLINE:`) or `:LOGBOOK:` drawers. They pass through as noise. Fix: extend the Clean ruleset
-(no new option), tracked with the Logseq-only markers decision (specs/export-scope.md §11, SQ29).
+(no new option; numbered lists are the exception, SQ33), tracked with the Logseq-only markers decision (specs/export-scope.md §11, SQ29).
+
+### 4.1b Numbered lists (Clean sub-setting; SQ33, SQ34)
+
+- Logseq stores a numbered list as a `logseq.order-list-type:: number` property line on each child block.
+- **Bullets**: the property line is dropped and the bullets stay.
+- **Numbered** (default): the property line is dropped and the bullet becomes a marker. A run is a block's consecutive numbered children. It starts at 1 and restarts after a non-numbered sibling.
+- The marker cycles with depth in numbered ancestors: `1.`, `a.`, `I.`, then `1.` again. Only the decimal form is a markdown list. Letters and Roman numerals are plain text with the indent kept.
+- Raw keeps the property lines.
 
 ### 4.2 Outline & tasks
 

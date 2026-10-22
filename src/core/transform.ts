@@ -11,7 +11,7 @@ import type { ExportOptions } from './options'
  */
 
 export const FENCE = /^\s*(?:[-*+]\s+)?(```|~~~)/
-const PROPERTY_LINE = /^(\s*)([A-Za-z0-9_-]+)::(?:[ \t](.*))?$/
+const PROPERTY_LINE = /^(\s*)([A-Za-z0-9_.-]+)::(?:[ \t](.*))?$/
 const TASK_LINE = /^(\s*(?:[-*+]\s+)?)(TODO|DOING|NOW|LATER|WAITING|DONE|CANCELED)(?=\s)/
 
 const EMBED_BLOCK_REF = /\{\{embed\s+\(\(([^)]+)\)\)\s*\}\}/g
@@ -91,29 +91,128 @@ const cleanLine = (line: string, options: ExportOptions): string => {
   return out
 }
 
+const BULLET = /^(\s*)[-*+]\s/
+const NUMBERED_KEY = 'logseq.order-list-type'
+const ROMAN: [number, string][] = [
+  [1000, 'M'],
+  [900, 'CM'],
+  [500, 'D'],
+  [400, 'CD'],
+  [100, 'C'],
+  [90, 'XC'],
+  [50, 'L'],
+  [40, 'XL'],
+  [10, 'X'],
+  [9, 'IX'],
+  [5, 'V'],
+  [4, 'IV'],
+  [1, 'I'],
+]
+
+const indentOf = (line: string): number => line.length - line.trimStart().length
+
+const romanFor = (ordinal: number): string => {
+  let rest = ordinal
+  let out = ''
+  for (const [value, symbol] of ROMAN) {
+    while (rest >= value) {
+      out += symbol
+      rest -= value
+    }
+  }
+  return out
+}
+
+/** Marker of the nth item in a numbered run; the style cycles 1. → a. → I. → 1. with depth. */
+const numberLabel = (ordinal: number, depth: number): string => {
+  const style = (depth - 1) % 3
+  if (style === 0) return `${ordinal}.`
+  if (style === 1) return `${String.fromCharCode(97 + ((ordinal - 1) % 26))}.`
+  return `${romanFor(ordinal)}.`
+}
+
+/** `untouched`: fence lines and the code inside them. `body`: only the code inside them. */
+const fencedLines = (lines: string[]): { untouched: boolean[]; body: boolean[] } => {
+  const untouched: boolean[] = []
+  const body: boolean[] = []
+  let inFence = false
+  for (const line of lines) {
+    if (FENCE.test(line)) {
+      inFence = !inFence
+      untouched.push(true)
+      body.push(false)
+    } else {
+      untouched.push(inFence)
+      body.push(inFence)
+    }
+  }
+  return { untouched, body }
+}
+
+/** A bullet is numbered when a `logseq.order-list-type` line belongs to its own content. */
+const isNumberedBlock = (lines: string[], index: number): boolean => {
+  const bulletIndent = indentOf(lines[index])
+  for (let next = index + 1; next < lines.length; next++) {
+    const line = lines[next]
+    if (line.trim() === '' || BULLET.test(line) || indentOf(line) <= bulletIndent) return false
+    const property = PROPERTY_LINE.exec(line)
+    if (property !== null && property[2] === NUMBERED_KEY) return true
+  }
+  return false
+}
+
+interface NumberingFrame {
+  indent: number
+  /** Numbered ancestors, counting this block when it is numbered. */
+  depth: number
+  /** Numbered children so far in the current run. */
+  run: number
+}
+
+/** Marker for every numbered bullet, by line index. A run restarts after a non-numbered sibling. */
+const numberLabels = (lines: string[], body: boolean[]): Map<number, string> => {
+  const labels = new Map<number, string>()
+  const stack: NumberingFrame[] = [{ indent: -1, depth: 0, run: 0 }]
+  lines.forEach((line, index) => {
+    if (body[index] || !BULLET.test(line)) return
+    const indent = indentOf(line)
+    while (stack[stack.length - 1].indent >= indent) stack.pop()
+    const parent = stack[stack.length - 1]
+    if (isNumberedBlock(lines, index)) {
+      parent.run += 1
+      const depth = parent.depth + 1
+      labels.set(index, numberLabel(parent.run, depth))
+      stack.push({ indent, depth, run: 0 })
+    } else {
+      parent.run = 0
+      stack.push({ indent, depth: parent.depth, run: 0 })
+    }
+  })
+  return labels
+}
+
 export const transformMarkdown = (text: string, options: ExportOptions): string => {
   if (options.flavor === 'raw') return text
 
   const lines = text.split('\n')
-  const out: string[] = []
-  let inFence = false
+  const { untouched, body } = fencedLines(lines)
+  const labels =
+    options.numberedLists === 'numbered' ? numberLabels(lines, body) : new Map<number, string>()
 
-  for (const line of lines) {
-    if (FENCE.test(line)) {
-      inFence = !inFence
+  const out: string[] = []
+  lines.forEach((line, index) => {
+    if (untouched[index]) {
       out.push(line)
-      continue
-    }
-    if (inFence) {
-      out.push(line)
-      continue
+      return
     }
 
     const property = PROPERTY_LINE.exec(line)
-    if (property !== null && isInternalPropertyKey(property[2])) continue
+    if (property !== null && isInternalPropertyKey(property[2])) return
 
-    out.push(cleanLine(line, options))
-  }
+    const cleaned = cleanLine(line, options)
+    const label = labels.get(index)
+    out.push(label === undefined ? cleaned : cleaned.replace(BULLET, `$1${label} `))
+  })
 
   return out.join('\n')
 }

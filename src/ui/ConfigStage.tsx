@@ -132,6 +132,18 @@ export const ConfigStage = ({ host }: { host: Host }) => {
               ]}
             />
           </div>
+          <div className="tq-opt-row">
+            <span className="tq-opt-label">Numbered lists</span>
+            <Segmented
+              value={options.numberedLists}
+              onChange={(numberedLists) => set({ numberedLists })}
+              disabled={raw}
+              choices={[
+                { value: 'bullets', label: 'Bullets' },
+                { value: 'numbered', label: 'Numbered' },
+              ]}
+            />
+          </div>
         </div>
       </div>
 

@@ -14,7 +14,7 @@ export const INTERNAL_PROPERTY_KEYS: ReadonlySet<string> = new Set([
   'macro_id',
 ])
 
-export const INTERNAL_PROPERTY_PREFIXES: readonly string[] = ['hl-', 'card-']
+export const INTERNAL_PROPERTY_PREFIXES: readonly string[] = ['hl-', 'card-', 'logseq.']
 
 export const isInternalPropertyKey = (key: string): boolean =>
   INTERNAL_PROPERTY_KEYS.has(key) ||

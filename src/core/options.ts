@@ -12,6 +12,8 @@ export type TaskMode = 'logseq' | 'checkbox'
 export type ExternalLinkMode = 'markdown' | 'plain'
 export type RefMode = 'strip' | 'resolve'
 
+export type NumberedListMode = 'bullets' | 'numbered'
+
 export interface ExportOptions {
   flavor: Flavor
   wikiLinks: WikiLinkMode
@@ -20,6 +22,8 @@ export interface ExportOptions {
   externalLinks: ExternalLinkMode
   /** `resolve` expands block refs and embeds two levels deep (core/refs.ts). */
   refs: RefMode
+  /** Clean only: numbered children drop Logseq's property line and become `1.`, `a.`, `I.`, … by depth. */
+  numberedLists: NumberedListMode
 }
 
 export const DEFAULT_OPTIONS: ExportOptions = {
@@ -29,4 +33,5 @@ export const DEFAULT_OPTIONS: ExportOptions = {
   tasks: 'logseq',
   externalLinks: 'markdown',
   refs: 'resolve',
+  numberedLists: 'numbered',
 }
