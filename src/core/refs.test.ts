@@ -38,21 +38,37 @@ describe('expandRefs', () => {
     expect(await expandRefs('x ((a))', source)).toBe('x A B ((c))')
   })
 
-  it('expands an inline page embed to the page first line', async () => {
+  it("places an inline page embed's content beneath its bullet", async () => {
     const source = sourceOf({}, { 'Short content': '- one\n- two' })
     expect(await expandRefs('Here: {{embed [[Short content]] }} inline', source)).toBe(
-      'Here: one inline',
+      'Here: inline\n  - one\n  - two',
+    )
+  })
+
+  it('places an inline block embed beneath its bullet', async () => {
+    const source = sourceOf({ a: '- alpha' })
+    expect(await expandRefs('- Embedding a block: {{embed ((a))}}', source)).toBe(
+      '- Embedding a block:\n  - alpha',
+    )
+  })
+
+  it('places embedded content after the bullet\'s own continuation lines', async () => {
+    const source = sourceOf({}, { P: '- x' })
+    expect(await expandRefs('- Here {{embed [[P]]}} or text\n  half line', source)).toBe(
+      '- Here or text\n  half line\n  - x',
     )
   })
 
   it('expands several embeds on one line', async () => {
     const source = sourceOf({ a: '- alpha' }, { Home: '- one' })
-    expect(await expandRefs('{{embed [[Home]]}} and {{embed ((a))}}', source)).toBe('one and alpha')
+    expect(await expandRefs('{{embed [[Home]]}} and {{embed ((a))}}', source)).toBe(
+      'and\n  - one\n  - alpha',
+    )
   })
 
-  it('expands inline page embeds at the second level only', async () => {
+  it('expands inline page embeds inside an embedded page at the second level only', async () => {
     const source = sourceOf({}, { A: '- x {{embed [[B]] }}', B: '- inner' })
-    expect(await expandRefs('{{embed [[A]]}}', source)).toBe('- x inner')
+    expect(await expandRefs('{{embed [[A]]}}', source)).toBe('- x\n  - inner')
   })
 
   it('keeps an inline page embed to a missing page as written', async () => {

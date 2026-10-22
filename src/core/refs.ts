@@ -5,8 +5,12 @@ import { FENCE } from './transform'
  * Block references and embeds resolved to their content (DESIGN.md §4.5,
  * `refs: resolve`). Pure: the platform supplies content through `RefSource`.
  *
- * Depth is fixed at two levels. A reference written in the page is level one;
- * a reference inside level-one content is level two. Anything deeper stays as
+ * A ref `((uuid))` becomes the target's first line, as Logseq shows it. An
+ * embed `{{embed …}}` of a block or a page brings in the whole content, placed
+ * beneath its bullet.
+ *
+ * Depth is fixed at two levels. Content written in the page is level one;
+ * content inside level-one content is level two. Anything deeper stays as
  * written, and the Clean transform turns it into a placeholder.
  */
 
@@ -37,12 +41,16 @@ export const effectiveSource = (texts: SourceTexts, options: ExportOptions): str
 // is carried onto the expanded content.
 const LINE_BLOCK_EMBED = /^(\s*)(?:[-*+]\s+)?\{\{embed\s+\(\(([^)]+)\)\)\s*\}\}\s*$/
 const LINE_PAGE_EMBED = /^(\s*)(?:[-*+]\s+)?\{\{embed\s+\[\[([^\]]+)\]\]\s*\}\}\s*$/
-// Left to right: block embed, page embed, bare block ref, then any other macro.
-// Macros are consumed whole so refs inside `{{query …}}` are left alone.
-const INLINE =
-  /\{\{embed\s+\(\(([^)]+)\)\)\s*\}\}|\{\{embed\s+\[\[([^\]]+)\]\]\s*\}\}|\(\(([^)]+)\)\)|\{\{[^}]*\}\}/g
+const BULLET = /^\s*[-*+]\s/
+// Inline embeds of a block (group 1) or a page (group 2).
+const EMBED = /\{\{embed\s+(?:\(\(([^)]+)\)\)|\[\[([^\]]+)\]\])\s*\}\}/g
+// Inline block refs (group 1), and any other macro. Macros are consumed whole
+// so refs inside `{{query …}}` are left alone.
+const REF = /\(\(([^)]+)\)\)|\{\{[^}]*\}\}/g
 
 const firstLine = (tree: string): string => tree.split('\n')[0].replace(/^\s*[-*+]\s+/, '').trim()
+
+const leadingSpace = (line: string): string => line.slice(0, line.length - line.trimStart().length)
 
 const replaceAsync = async (
   text: string,
@@ -58,25 +66,57 @@ const replaceAsync = async (
   return out + text.slice(last)
 }
 
-/** The tree an inline match points at; null for other macros and for missing targets. */
-const inlineTarget = async (match: RegExpExecArray, source: RefSource): Promise<string | null> => {
-  if (match[2] !== undefined) return source.pageTree(match[2].trim())
-  const uuid = match[1] ?? match[3]
-  return uuid === undefined ? null : source.blockTree(uuid.trim())
-}
-
-/**
- * Inline refs and embeds become the target's first line; missing targets stay
- * as written.
- */
-const expandInline = async (text: string, source: RefSource, depth: number): Promise<string> => {
+/** Inline block refs become the target's first line; missing targets stay as written. */
+const resolveInlineRefs = async (text: string, source: RefSource, depth: number): Promise<string> => {
   if (depth <= 0) return text
-  return replaceAsync(text, INLINE, async (match) => {
-    const tree = await inlineTarget(match, source)
+  return replaceAsync(text, REF, async (match) => {
+    const uuid = match[1]
+    if (uuid === undefined) return match[0]
+    const tree = await source.blockTree(uuid.trim())
     if (tree === null) return match[0]
-    return expandInline(firstLine(tree), source, depth - 1)
+    return resolveInlineRefs(firstLine(tree), source, depth - 1)
   })
 }
+
+/** The content an inline embed points at; null when the target is unreadable. */
+const embedTree = (match: RegExpExecArray, source: RefSource): Promise<string | null> =>
+  match[1] !== undefined
+    ? source.blockTree(match[1].trim())
+    : source.pageTree((match[2] ?? '').trim())
+
+interface ExpandedLine {
+  text: string
+  /** Content of the embeds cut out of this line, to be placed beneath its bullet. */
+  embeds: string[]
+}
+
+/** One line of outline text: inline embeds are cut out, and refs in what remains are resolved. */
+const expandLine = async (line: string, source: RefSource, depth: number): Promise<ExpandedLine> => {
+  const embeds: string[] = []
+  let cut = false
+  const remaining = await replaceAsync(line, EMBED, async (match) => {
+    const tree = await embedTree(match, source)
+    if (tree === null) return match[0]
+    cut = true
+    if (tree !== '') embeds.push(tree)
+    return ''
+  })
+
+  const lead = leadingSpace(line)
+  const text = cut
+    ? lead + remaining.slice(lead.length).replace(/(\S) {2,}/g, '$1 ').trim()
+    : remaining
+  return { text: await resolveInlineRefs(text, source, depth), embeds }
+}
+
+/** A line that belongs to the block above it: indented deeper, and not a bullet, fence, or whole-line embed. */
+const isContinuation = (line: string, indent: string): boolean =>
+  line.trim() !== '' &&
+  leadingSpace(line).length > indent.length &&
+  !BULLET.test(line) &&
+  !FENCE.test(line) &&
+  !LINE_BLOCK_EMBED.test(line) &&
+  !LINE_PAGE_EMBED.test(line)
 
 const resolveLineEmbed = async (
   line: string,
@@ -96,8 +136,9 @@ const resolveLineEmbed = async (
 
 /**
  * Resolves block refs and embeds in outline text. Whole-line embeds become the
- * embedded subtree at the line's indent; inline refs become the target's first
- * line. Fenced code is left untouched.
+ * embedded content at the line's indent; inline embeds place their content
+ * beneath the bullet, after the block's own continuation lines. Fenced code is
+ * left untouched.
  */
 export const expandRefs = async (
   text: string,
@@ -106,9 +147,11 @@ export const expandRefs = async (
 ): Promise<string> => {
   if (depth <= 0) return text
 
+  const lines = text.split('\n')
   const out: string[] = []
   let inFence = false
-  for (const line of text.split('\n')) {
+  for (let index = 0; index < lines.length; index++) {
+    const line = lines[index]
     if (FENCE.test(line)) {
       inFence = !inFence
       out.push(line)
@@ -125,7 +168,25 @@ export const expandRefs = async (
       out.push(...body.split('\n').map((bodyLine) => embed.indent + bodyLine))
       continue
     }
-    out.push(await expandInline(line, source, depth))
+
+    const indent = leadingSpace(line)
+    const first = await expandLine(line, source, depth)
+    out.push(first.text)
+    const embeds = [...first.embeds]
+
+    let next = index + 1
+    while (next < lines.length && isContinuation(lines[next], indent)) {
+      const part = await expandLine(lines[next], source, depth)
+      out.push(part.text)
+      embeds.push(...part.embeds)
+      next++
+    }
+    index = next - 1
+
+    for (const tree of embeds) {
+      const body = await expandRefs(tree, source, depth - 1)
+      out.push(...body.split('\n').map((bodyLine) => indent + '  ' + bodyLine))
+    }
   }
   return out.join('\n')
 }

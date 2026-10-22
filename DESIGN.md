@@ -171,6 +171,7 @@ Form: `![alt](path)`.
   - A whole-line `{{embed ((uuid))}}` becomes the block's subtree at the line's indent.
   - A whole-line `{{embed [[Page]]}}` becomes the page's block tree at the line's indent.
   - An inline `((uuid))` becomes the target block's first line.
+  - An inline `{{embed ((uuid))}}` or `{{embed [[Page]]}}` places the whole target content beneath its bullet, after the block's own continuation lines.
   - Depth is hard-coded to two levels: refs written in the page are level one, refs inside
     level-one content are level two. Deeper refs stay as written and become placeholders.
   - Fenced code and non-embed macros (`{{query …}}`) are never expanded. Missing blocks and

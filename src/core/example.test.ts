@@ -10,16 +10,22 @@ const output = (options: ExportOptions): string =>
 describe('example page', () => {
   it('resolves its refs and embeds through the same expander as a real page', () => {
     expect(EXAMPLE_TEXTS.expandedText).toContain('Referencing a block: resolved block ref content')
-    expect(EXAMPLE_TEXTS.expandedText).toContain('Embedding a block: resolved block embed content')
+    expect(EXAMPLE_TEXTS.expandedText).toContain(
+      '    - Embedding a block:\n      - resolved block embed content',
+    )
     expect(EXAMPLE_TEXTS.expandedText).not.toContain('((6ad77db3')
   })
 
-  it('expands an inline page embed to the page first line', () => {
-    expect(EXAMPLE_TEXTS.expandedText).toContain('Embedding a page: resolved page embed content')
+  it('expands an inline page embed beneath its bullet', () => {
+    expect(EXAMPLE_TEXTS.expandedText).toContain(
+      '    - Embedding a page:\n      - resolved page embed content',
+    )
   })
 
-  it('shows the inline page embed resolved in the output', () => {
-    expect(output(DEFAULT_OPTIONS)).toContain('Embedding a page: resolved page embed content')
+  it('shows the inline page embed beneath its bullet in the output', () => {
+    expect(output(DEFAULT_OPTIONS)).toContain(
+      '    - Embedding a page:\n      - resolved page embed content',
+    )
     expect(output(DEFAULT_OPTIONS)).not.toContain('[embed:')
   })
 
