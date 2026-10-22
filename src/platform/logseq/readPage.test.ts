@@ -36,9 +36,25 @@ describe('renderBlocks', () => {
     expect(renderBlocks([{ original: 'task', marker: 'TODO' }])).toEqual(['- TODO task'])
   })
 
-  it('keeps the collapsed state', () => {
+  it('keeps the collapsed state on its own line under the bullet', () => {
     expect(renderBlocks([{ original: 'folded', 'collapsed?': true }])).toEqual([
-      '- folded\ncollapsed:: true',
+      '- folded',
+      '  collapsed:: true',
+    ])
+  })
+
+  it('indents property lines under their own bullet', () => {
+    const tree = [
+      {
+        original: undefined,
+        content: 'parent',
+        children: [{ content: 'I like turtles\nlogseq.order-list-type:: number' }],
+      },
+    ]
+    expect(renderBlocks(tree)).toEqual([
+      '- parent',
+      '  - I like turtles',
+      '    logseq.order-list-type:: number',
     ])
   })
 

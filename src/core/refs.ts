@@ -37,9 +37,10 @@ export const effectiveSource = (texts: SourceTexts, options: ExportOptions): str
 // is carried onto the expanded content.
 const LINE_BLOCK_EMBED = /^(\s*)(?:[-*+]\s+)?\{\{embed\s+\(\(([^)]+)\)\)\s*\}\}\s*$/
 const LINE_PAGE_EMBED = /^(\s*)(?:[-*+]\s+)?\{\{embed\s+\[\[([^\]]+)\]\]\s*\}\}\s*$/
-// Left to right: block embed, bare block ref, then any other macro. Macros are
-// consumed whole so refs inside `{{query …}}` are left alone.
-const INLINE = /\{\{embed\s+\(\(([^)]+)\)\)\s*\}\}|\(\(([^)]+)\)\)|\{\{[^}]*\}\}/g
+// Left to right: block embed, page embed, bare block ref, then any other macro.
+// Macros are consumed whole so refs inside `{{query …}}` are left alone.
+const INLINE =
+  /\{\{embed\s+\(\(([^)]+)\)\)\s*\}\}|\{\{embed\s+\[\[([^\]]+)\]\]\s*\}\}|\(\(([^)]+)\)\)|\{\{[^}]*\}\}/g
 
 const firstLine = (tree: string): string => tree.split('\n')[0].replace(/^\s*[-*+]\s+/, '').trim()
 
@@ -57,13 +58,21 @@ const replaceAsync = async (
   return out + text.slice(last)
 }
 
-/** Inline refs become the target block's first line; missing targets stay as written. */
+/** The tree an inline match points at; null for other macros and for missing targets. */
+const inlineTarget = async (match: RegExpExecArray, source: RefSource): Promise<string | null> => {
+  if (match[2] !== undefined) return source.pageTree(match[2].trim())
+  const uuid = match[1] ?? match[3]
+  return uuid === undefined ? null : source.blockTree(uuid.trim())
+}
+
+/**
+ * Inline refs and embeds become the target's first line; missing targets stay
+ * as written.
+ */
 const expandInline = async (text: string, source: RefSource, depth: number): Promise<string> => {
   if (depth <= 0) return text
   return replaceAsync(text, INLINE, async (match) => {
-    const uuid = match[1] ?? match[2]
-    if (uuid === undefined) return match[0]
-    const tree = await source.blockTree(uuid.trim())
+    const tree = await inlineTarget(match, source)
     if (tree === null) return match[0]
     return expandInline(firstLine(tree), source, depth - 1)
   })

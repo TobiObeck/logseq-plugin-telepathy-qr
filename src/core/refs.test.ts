@@ -38,6 +38,30 @@ describe('expandRefs', () => {
     expect(await expandRefs('x ((a))', source)).toBe('x A B ((c))')
   })
 
+  it('expands an inline page embed to the page first line', async () => {
+    const source = sourceOf({}, { 'Short content': '- one\n- two' })
+    expect(await expandRefs('Here: {{embed [[Short content]] }} inline', source)).toBe(
+      'Here: one inline',
+    )
+  })
+
+  it('expands several embeds on one line', async () => {
+    const source = sourceOf({ a: '- alpha' }, { Home: '- one' })
+    expect(await expandRefs('{{embed [[Home]]}} and {{embed ((a))}}', source)).toBe('one and alpha')
+  })
+
+  it('expands inline page embeds at the second level only', async () => {
+    const source = sourceOf({}, { A: '- x {{embed [[B]] }}', B: '- inner' })
+    expect(await expandRefs('{{embed [[A]]}}', source)).toBe('- x inner')
+  })
+
+  it('keeps an inline page embed to a missing page as written', async () => {
+    const source = sourceOf({})
+    expect(await expandRefs('before {{embed [[Nowhere]]}} after', source)).toBe(
+      'before {{embed [[Nowhere]]}} after',
+    )
+  })
+
   it('leaves fenced code untouched', async () => {
     const source = sourceOf({ a: 'alpha' })
     const page = '```\n((a))\n{{embed ((a))}}\n```'

@@ -175,15 +175,23 @@ export const renderBlocks = (blocks: unknown[], depth = 0): string[] => {
 
     const marker =
       typeof entity['marker'] === 'string' ? entity['marker'] + ' ' : ''
-    const collapsed = entity['collapsed?'] === true ? '\ncollapsed:: true' : ''
+    const collapsed = entity['collapsed?'] === true
 
-    if (body !== '' || collapsed !== '') {
-      lines.push(`${indent}- ${marker}${body}${collapsed}`)
+    if (body !== '' || collapsed) {
+      // Lines after the first belong to this block (properties, wrapped text),
+      // so they sit one level under the bullet.
+      const [head = '', ...rest] = body.split('\n')
+      const continuation = '  '.repeat(depth + 1)
+      lines.push(`${indent}- ${marker}${head}`)
+      for (const line of [...rest, ...(collapsed ? ['collapsed:: true'] : [])]) {
+        lines.push(continuation + line)
+      }
     }
 
     const children = entity['children']
     if (Array.isArray(children)) {
-      lines.push(...renderBlocks(children, body === '' && collapsed === '' ? depth : depth + 1))
+      const hasOwnLines = body !== '' || collapsed
+      lines.push(...renderBlocks(children, hasOwnLines ? depth + 1 : depth))
     }
   }
 

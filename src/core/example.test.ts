@@ -14,9 +14,13 @@ describe('example page', () => {
     expect(EXAMPLE_TEXTS.expandedText).not.toContain('((6ad77db3')
   })
 
-  it('leaves an inline page embed as a placeholder, since only whole-line page embeds expand', () => {
-    expect(EXAMPLE_TEXTS.expandedText).toContain('Embedding a page: {{embed [[Daily Template]]}}')
-    expect(output(DEFAULT_OPTIONS)).toContain('Embedding a page: [embed: Daily Template]')
+  it('expands an inline page embed to the page first line', () => {
+    expect(EXAMPLE_TEXTS.expandedText).toContain('Embedding a page: resolved page embed content')
+  })
+
+  it('shows the inline page embed resolved in the output', () => {
+    expect(output(DEFAULT_OPTIONS)).toContain('Embedding a page: resolved page embed content')
+    expect(output(DEFAULT_OPTIONS)).not.toContain('[embed:')
   })
 
   it('keeps its raw source as Input, whatever the refs option', () => {
