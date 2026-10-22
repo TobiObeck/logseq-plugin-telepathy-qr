@@ -120,5 +120,52 @@ describe('export session store', () => {
     expect(context().stage).toBe('qr')
     expect(context().options).toEqual(DEFAULT_OPTIONS)
     expect(context().parts.length).toBeGreaterThanOrEqual(1)
+    expect(context().scope).toBe('page')
+  })
+
+  it('quickOpen with a scope records it and goes straight to the QR stage', () => {
+    const cfg = savedCfg({})
+    telepathyStore.send({
+      type: 'quickOpen',
+      sourceText: 'a\n',
+      config: cfg,
+      scope: 'focused',
+      scopeRoots: 1,
+    })
+    expect(context().stage).toBe('qr')
+    expect(context().scope).toBe('focused')
+    expect(context().generating).toBe(true)
+  })
+
+  /* ----------------------------------------------- export scope provenance */
+
+  it('defaults the scope to the whole page with one root', () => {
+    telepathyStore.send({ type: 'open', sourceText: 'x\n' })
+    expect(context().scope).toBe('page')
+    expect(context().scopeRoots).toBe(1)
+  })
+
+  it('open records the scope and root count', () => {
+    telepathyStore.send({ type: 'open', sourceText: 'x\n', scope: 'selection', scopeRoots: 3 })
+    expect(context().scope).toBe('selection')
+    expect(context().scopeRoots).toBe(3)
+  })
+
+  it('keeps the scope through generate, back, and a fresh open', () => {
+    telepathyStore.send({ type: 'open', sourceText: 'x\n', scope: 'focused', scopeRoots: 1 })
+    telepathyStore.send({ type: 'generate' })
+    telepathyStore.send({ type: 'partEncoded', index: 0, dataUrl: 'a' })
+    telepathyStore.send({ type: 'back' })
+    expect(context().scope).toBe('focused')
+
+    telepathyStore.send({ type: 'open', sourceText: 'y\n' })
+    expect(context().scope).toBe('page')
+  })
+
+  it('close resets the scope to the whole page', () => {
+    telepathyStore.send({ type: 'open', sourceText: 'x\n', scope: 'selection', scopeRoots: 2 })
+    telepathyStore.send({ type: 'close' })
+    expect(context().scope).toBe('page')
+    expect(context().scopeRoots).toBe(1)
   })
 })

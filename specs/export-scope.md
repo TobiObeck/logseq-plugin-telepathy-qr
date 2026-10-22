@@ -1,7 +1,10 @@
 # Spec: Export Scope (focused bullet · selected bullets · bullet + children)
 
-**Status**: designed — trial pending (probe code shipped in dev builds; run it in
-real Logseq and paste logs back before iteration 1 starts)
+**Status**: iteration 1 implemented and partly trialed in real Logseq. Confirmed: dot
+right-click shows the block-menu item and selects the block plus children (SQ21 accepted);
+the subtree export is correct, so `getBlock` children are entities (decision 5). Still
+open: zoom route shape (decision 1, now exercised by the shortcut), selection order and
+dedupe with multi-select (decision 4). Iteration 2 shortcut shipped alongside.
 **Parent**: DESIGN.md §11, NTH #7/#8/#9 (merged into one spec by decision)
 **Decisions**: grilling session 2; logged as `(SQn)` in §11 below to avoid
 clashing with DESIGN.md's `(Qn)` numbering.
@@ -53,9 +56,9 @@ user's actual Logseq before iteration 1 is built, like the SVG-label trial
 | Entry | Scope | Notes |
 |---|---|---|
 | Page menu "📱 Export page as QR code" | **always full page** | unchanged, never zoom-aware (SQ9, SQ14) |
-| Page menu "⚫ Export focused bullet as QR code" *(new)* | zoomed block + descendants | when not zoomed: warning toast "TelepathyQR: no focused bullet — zoom into a bullet first.", nothing opens (SQ9, SQ14) |
-| Block context menu "📱 Export selected bullet(s) as QR code" *(new)* | blue selection if any, else right-clicked block + children (SQ15, SQ20) | static `(s)` label; dynamic singular/plural is NTH (SQ10) |
-| `Ctrl+Shift+Q` quick export | **iteration 1: unchanged (full page).** Iteration 2: context-aware — selection > zoom > page (SQ7, SQ8, SQ18) | scoped quick exports land directly on the QR stage with saved options, as today |
+| Block context menu "📱 Export selected bullet(s) as QR code" *(new)* | right-clicked block + children; scope `focused`, label "This bullet" (a bullet right-click replaces any blue selection, SQ15, SQ20, SQ23, SQ24) | static `(s)` label; dynamic singular/plural is NTH (SQ10) |
+| Page menu "⚫ Export focused bullet as QR code" | **removed (SQ22)** — the page menu is not shown in zoom view, so the entry was unreachable where it mattered. Focused export is the shortcut's zoom branch (below) and the block context menu on the zoomed bullet. |
+| `Ctrl+Shift+Q` quick export | **context-aware (iteration 2, shipped with iteration 1 per SQ22):** selection > zoom > page (SQ7, SQ8, SQ18) | scoped quick exports land directly on the QR stage with saved options; unscoped (whole page) behaves as before |
 
 All entries keep the existing DB-graph guard toast. All scoped entries open at
 the **Config stage** in iteration 1 (no direct-to-QR for new entries until the
@@ -64,18 +67,16 @@ context-aware shortcut lands in iteration 2). (SQ6, SQ7)
 ### 3.2 Scope resolution (context-menu callback)
 
 ```
-cb({uuid}):
-  selected = await getSelectedBlocks()
-  if selected non-empty:
-      roots = dedupe(selected)          # §5.3
-      sourceText = render(roots)
-      scope = 'selection'
-  else:                                  # host didn't auto-select; same result
-      block = await getBlock(uuid, {includeChildren: true})
-      sourceText = render([block])
-      scope = 'selection'                # user-visible: still "selected bullet(s)"
+cb({uuid}):                              # SQ23: a bullet right-click replaces any selection
+  block = await getBlock(uuid, {includeChildren: true})
+  sourceText = render([block])
+  scope = 'focused'                      # SQ24: label "This bullet"
   if sourceText empty/degenerate → toast "TelepathyQR: nothing to export.", no modal
-  else → open Config stage with {sourceText, scope, rootCount: roots.length}
+  else → open Config stage with {sourceText, scope, rootCount: 1}
+```
+
+The blue-selection branch (`getSelectedBlocks()` non-empty → `dedupe`) is still used by
+the shortcut (§6), where no right-click happens and multi-selection can persist.
 ```
 
 ### 3.3 Modal labels (scope provenance)
@@ -140,6 +141,15 @@ right-click.
    tuples; `original` present on children?) → pins the subtree renderer input.
 6. `getCurrentPage()` while zoomed — page entity, uuid-named, or null?
 
+**Trial results (2026-10-22, real Logseq, prod-equivalent behaviour verified by the user):**
+
+- 1 ✅ Zoomed route is `/page/<uuid>` (`onRouteChanged` payload `path`); zoom-out returns `/page/<name>`. Route-cache detection ships as-is. The shortcut zoom branch works.
+- 2 ✅ Block-menu item appears on the bullet dot only (SQ21 accepted).
+- 3 ✅ Dot right-click selects the bullet and its children, which replaces any previous selection (SQ23). Note: `getSelectedBlocks()` returned `null` inside the block-menu callback, so the entry no longer reads it.
+- 4 ⏳ Multi-block selection order/dedupe: not yet exercised (only reachable via the shortcut with a shift-click selection).
+- 5 ✅ `getBlock(includeChildren)` children are entities (`uuid`, `content`, `children`, …); `original` is `undefined`, so the renderer falls back to `content`.
+- 6 ⚪ Not needed: the zoom branch of the shortcut runs before the page branch, so `getCurrentPage()` is not consulted while zoomed.
+
 ## 5. Technical design
 
 ### 5.1 Zoom detection (`src/platform/logseq/zoom.ts`, new)
@@ -194,9 +204,9 @@ through store events, not the Host. (Keeps `core`/`ui` free of Logseq types.)
 
 - **Iteration 0** — probe (§4). ✅ code shipped; awaiting user's log
   pastes → decisions 1–6.
-- **Iteration 1** — block-context-menu entry, ⚫ page-menu entry + zoom
-  detection module, subtree renderer + dedupe, store scope + preview labels,
-  toasts, unit tests.
+- **Iteration 1** — ✅ implemented: block-context-menu entry, ⚫ page-menu entry +
+  zoom detection (`zoom.ts`), subtree renderer + dedupe (`readPage.ts`,
+  `core/scope.ts`), store scope + preview labels, toasts, unit tests.
 - **Human manual-check gate** — user verifies all entries in real Logseq.
 - **Iteration 2** — context-aware `Ctrl+Shift+Q`: resolve selection > zoom >
   page at fire time; scoped quick exports `quickOpen` straight to the QR
@@ -250,7 +260,7 @@ through store events, not the Host. (Keeps `core`/`ui` free of Logseq types.)
 | File | Change |
 |---|---|
 | `src/platform/logseq/probe.ts` | ✅ new (iteration 0, dev-only) |
-| `src/platform/logseq/main.tsx` | ✅ probe wiring; later: ⚫ entry, context-menu entry, iteration-2 shortcut |
+| `src/platform/logseq/main.tsx` | ✅ probe wiring; ✅ block-context-menu entry; ✅ context-aware shortcut |
 | `src/platform/logseq/zoom.ts` | new: route cache + `getZoomedBlockUuid` |
 | `src/platform/logseq/readPage.ts` | subtree/selection readers |
 | `src/core/scope.ts` | new: `ExportScope`, dedupe/order, route-uuid parse |
@@ -282,6 +292,14 @@ through store events, not the Host. (Keeps `core`/`ui` free of Logseq types.)
 | 19 | Zoom detection: route cache + on-demand probe, trial-gated; user runs probe and pastes logs |
 | 20 | Scope resolution: `getSelectedBlocks()` non-empty → selection; else `getBlock(uuid, includeChildren)` |
 | 21 | Menu reach: try in real Logseq; dot right-click acceptable if blue-area menu lacks plugin items |
+| 22 | Trial result: block-menu item is dot-only (blue-area right-click lacks it; accepted per SQ21). Page-menu ⚫ entry removed — unreachable in zoom view. Focused export moved to the Ctrl+Shift+Q zoom branch, which ships now (iteration 2 pulled forward at the user's request). |
+| 23 | Trial result: a bullet right-click replaces the blue selection with that bullet + children. The block-menu entry therefore always exports the clicked block; the blue-selection branch is dropped. Multi-selection export is reachable only via the shortcut. |
+| 24 | User decision: the block-menu export uses the `focused` scope, so its preview label reads "This bullet" (not "Selection (1)"). |
+| 25 | Trial result: `getBlock` children carry `content` but no `original`; the renderer falls back to `content`. |
+| 26 | Not possible via the official API: right-click on blue selected text (block menu is dot-only; highlight menu is PDF-only). Covered by `Ctrl+Shift+Q` and the palette command "Export selection". |
+| 27 | Not possible in zoom view: plugin page-menu items are not shown there. Covered by `Ctrl+Shift+Q` and the palette command "Export focused bullet" (`registerCommandPalette`, works in zoom view). |
+| 28 | Open: Clean already drops internal keys (`id`, `collapsed`, `background-color`, `custom_id`, `macro_id`, `hl-*`, `card-*`). Collapse markers matter only in Raw; whether raw scoped exports can carry them depends on the collapse probe (probe item 10). |
+| 29 | Decision A: no new option for Logseq-only markers. Clean removes them, Raw keeps everything. Known flaw (C): Clean still passes `SCHEDULED:` / `DEADLINE:` lines and `:LOGBOOK:` drawers through; fix by extending the Clean ruleset, not by adding an option. Documented in DESIGN.md §4.1a. |
 
 ## 12. NTH & far-future bookings from this session
 

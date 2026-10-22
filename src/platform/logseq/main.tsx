@@ -6,10 +6,13 @@ import { createRoot } from 'react-dom/client'
 import type { Host, SavedConfig } from '../../core/host'
 import { DEFAULT_OPTIONS } from '../../core/options'
 import { cancelActiveGeneration, startRunner } from '../../core/runner'
+import type { ExportScope } from '../../core/scope'
 import { telepathyStore } from '../../core/store'
 import { App } from '../../ui/App'
-import { readPageMarkdown } from './readPage'
+import { BUILD_LABEL } from '../../ui/buildInfo'
+import { readBlocksMarkdown, readPageMarkdown } from './readPage'
 import { registerDevProbes } from './probe'
+import { getZoomedBlockUuid, watchRoute } from './zoom'
 
 /**
  * Menu label. The inline-SVG icon trial (DESIGN.md §1, Q29) failed — Logseq
@@ -17,6 +20,7 @@ import { registerDevProbes } from './probe'
  * shipped form.
  */
 const MENU_LABEL = '📱 Export page as QR code'
+const SELECTION_MENU_LABEL = '📱 Export selected bullet(s) as QR code'
 
 /** localStorage key prefix, suffixed with the graph path and ":options". */
 const STORAGE_PREFIX = 'telepathy-qr:'
@@ -92,12 +96,27 @@ const isDbGraph = async (): Promise<boolean> => {
   }
 }
 
+/** Toasts and returns true when the current graph is a DB graph (not exportable). */
+const refuseDbGraph = async (): Promise<boolean> => {
+  if (!(await isDbGraph())) return false
+  host.toast('TelepathyQR: database graphs cannot be exported.', 'warning')
+  return true
+}
+
+/** Opens the Config stage on a source. The scope only labels the preview. */
+const openConfigStage = async (
+  sourceText: string,
+  scope: ExportScope,
+  scopeRoots: number,
+): Promise<void> => {
+  const savedConfig = await host.loadSavedConfig()
+  telepathyStore.send({ type: 'open', sourceText, savedConfig, scope, scopeRoots })
+  await logseq.showMainUI()
+}
+
 const startExport = async (pageName?: string): Promise<void> => {
   try {
-    if (await isDbGraph()) {
-      host.toast('TelepathyQR: database graphs cannot be exported.', 'warning')
-      return
-    }
+    if (await refuseDbGraph()) return
 
     const name = pageName ?? (await currentPageName())
     if (name === undefined) {
@@ -105,10 +124,8 @@ const startExport = async (pageName?: string): Promise<void> => {
       return
     }
 
-    const savedConfig = await host.loadSavedConfig()
     const sourceText = await readPageMarkdown(name)
-    telepathyStore.send({ type: 'open', sourceText, savedConfig })
-    await logseq.showMainUI()
+    await openConfigStage(sourceText, 'page', 1)
   } catch (error) {
     console.error('[TelepathyQR]', error)
     const reason = error instanceof Error ? error.message : String(error)
@@ -116,22 +133,106 @@ const startExport = async (pageName?: string): Promise<void> => {
   }
 }
 
-const startQuickExport = async (): Promise<void> => {
-  try {
-    if (await isDbGraph()) {
-      host.toast('TelepathyQR: database graphs cannot be exported.', 'warning')
-      return
-    }
+/** Failures of the scoped entries all read as "could not read the block"; details go to the console. */
+const reportBlockFailure = (error: unknown): void => {
+  console.error('[TelepathyQR]', error)
+  host.toast('TelepathyQR: could not read the block.', 'error')
+}
 
-    const name = await currentPageName()
-    if (name === undefined) {
-      host.toast('TelepathyQR: no current page to export.', 'warning')
+/**
+ * A bullet right-click replaces any blue selection with that bullet and its
+ * children, so the clicked block is the whole scope.
+ */
+const exportSelectedBlocks = async (uuid: string): Promise<void> => {
+  try {
+    if (await refuseDbGraph()) return
+
+    const { sourceText, rootCount } = await readBlocksMarkdown([uuid])
+    if (sourceText.trim() === '') {
+      host.toast('TelepathyQR: nothing to export.', 'warning')
       return
     }
+    await openConfigStage(sourceText, 'focused', rootCount)
+  } catch (error) {
+    reportBlockFailure(error)
+  }
+}
+
+interface QuickSource {
+  sourceText: string
+  scope: ExportScope
+  scopeRoots: number
+}
+
+/** Reads the blocks for a scoped quick export; null (after a toast) when nothing is readable. */
+const readScopedQuickSource = async (
+  uuids: string[],
+  scope: 'selection' | 'focused',
+): Promise<QuickSource | null> => {
+  try {
+    const { sourceText, rootCount } = await readBlocksMarkdown(uuids)
+    if (sourceText.trim() === '') {
+      host.toast('TelepathyQR: nothing to export.', 'warning')
+      return null
+    }
+    return { sourceText, scope, scopeRoots: rootCount }
+  } catch (error) {
+    reportBlockFailure(error)
+    return null
+  }
+}
+
+/**
+ * `auto` is the shortcut's selection > zoom > page order. The palette commands
+ * force one scope and toast when that scope is empty.
+ */
+type QuickMode = 'auto' | 'focused' | 'selection'
+
+/**
+ * Quick export (specs/export-scope.md §6, SQ8). Scoped exports go straight to
+ * the QR stage with the saved options.
+ */
+const startQuickExport = async (mode: QuickMode = 'auto'): Promise<void> => {
+  try {
+    if (await refuseDbGraph()) return
+
+    const selected = (await logseq.Editor.getSelectedBlocks()) ?? []
+    const zoomed = getZoomedBlockUuid()
+
+    let source: QuickSource | null
+    if (mode === 'selection' || (mode === 'auto' && selected.length > 0)) {
+      if (selected.length === 0) {
+        host.toast('TelepathyQR: no blocks selected.', 'warning')
+        return
+      }
+      source = await readScopedQuickSource(
+        selected.map((block) => block.uuid),
+        'selection',
+      )
+    } else if (mode === 'focused' || (mode === 'auto' && zoomed !== null)) {
+      if (zoomed === null) {
+        host.toast('TelepathyQR: no focused bullet — zoom into a bullet first.', 'warning')
+        return
+      }
+      source = await readScopedQuickSource([zoomed], 'focused')
+    } else {
+      const name = await currentPageName()
+      if (name === undefined) {
+        host.toast('TelepathyQR: no current page to export.', 'warning')
+        return
+      }
+      source = { sourceText: await readPageMarkdown(name), scope: 'page', scopeRoots: 1 }
+    }
+    if (source === null) return
 
     const config = await host.loadSavedConfig()
-    const sourceText = await readPageMarkdown(name)
-    telepathyStore.send({ type: 'quickOpen', sourceText, config })
+    telepathyStore.send({
+      type: 'quickOpen',
+      sourceText: source.sourceText,
+      config,
+      scope: source.scope,
+      scopeRoots: source.scopeRoots,
+    })
     startRunner(telepathyStore)
     await logseq.showMainUI()
   } catch (error) {
@@ -151,11 +252,20 @@ const copyBlockTree = async (): Promise<void> => {
   const name = await currentPageName()
   if (name === undefined) return
   const tree = await logseq.Editor.getPageBlocksTree(name)
-  await navigator.clipboard.writeText(JSON.stringify(tree, null, 2))
-  host.toast('TelepathyQR: block tree JSON copied to clipboard.', 'success')
+  const json = JSON.stringify(tree, null, 2)
+  try {
+    await navigator.clipboard.writeText(json)
+    host.toast('TelepathyQR: block tree JSON copied to clipboard.', 'success')
+  } catch {
+    // Clipboard writes need document focus, which a host menu click does not
+    // give the plugin frame. The JSON goes to the console instead.
+    console.log('[TelepathyQR] block tree JSON:\n' + json)
+    host.toast('TelepathyQR: clipboard refused; block tree JSON logged to the console.', 'warning')
+  }
 }
 
 const main = (): void => {
+  console.info('[TelepathyQR]', BUILD_LABEL)
   logseq.provideModel({
     hide: () => {
       cancelActiveGeneration()
@@ -179,10 +289,26 @@ const main = (): void => {
     void startExport(payload.page)
   })
 
+  logseq.Editor.registerBlockContextMenuItem(SELECTION_MENU_LABEL, ({ uuid }) =>
+    exportSelectedBlocks(uuid),
+  )
+
+  watchRoute()
+
   logseq.App.registerCommandShortcut(
     { binding: 'ctrl+shift+q', mac: 'cmd+shift+q' },
     () => void startQuickExport(),
     { label: 'TelepathyQR: Quick Export' },
+  )
+
+  logseq.App.registerCommandPalette(
+    { key: 'telepathy-qr-focused', label: 'TelepathyQR: Export focused bullet' },
+    () => void startQuickExport('focused'),
+  )
+
+  logseq.App.registerCommandPalette(
+    { key: 'telepathy-qr-selection', label: 'TelepathyQR: Export selection' },
+    () => void startQuickExport('selection'),
   )
 
   if (import.meta.env.DEV) {

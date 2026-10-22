@@ -233,6 +233,16 @@ body {
   justify-content: flex-end;
 }
 
+/* Build identity (src/ui/buildInfo.ts), kept out of the layout. */
+.tq-build {
+  position: absolute;
+  right: 0.75rem;
+  bottom: 0.25rem;
+  font-size: 0.7rem;
+  opacity: 0.6;
+  pointer-events: none;
+}
+
 /* ------------------------------------------------------------------- QR stage */
 
 .tq-tabs {

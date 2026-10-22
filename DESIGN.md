@@ -124,6 +124,20 @@ A property line matches `key:: value` on its own line (any indentation).
 - **User property lines are kept verbatim** in v1; the `key:: → key:` rewrite is a future feature
   (Q18).
 
+### 4.1a Scope: Logseq-only markers (decision A)
+
+- **Clean** is the "remove Logseq markers" flavor. It drops the internal property keys (§4.1)
+  and rewrites Logseq-only syntax (wiki links, images, refs, external links, task markers).
+- **Raw** is the "as Logseq stores it" flavor. Nothing is removed. Block-tree exports (scoped
+  quick exports, bullet export) are reassembled from the editor API and are not byte-identical
+  to the file.
+- No separate "keep Logseq properties" toggle. Its only effect would be in Raw, which already
+  keeps everything.
+
+**Known flaw (not yet fixed):** Clean does not remove scheduling lines (`SCHEDULED:` /
+`DEADLINE:`) or `:LOGBOOK:` drawers. They pass through as noise. Fix: extend the Clean ruleset
+(no new option), tracked with the Logseq-only markers decision (specs/export-scope.md §11, SQ29).
+
 ### 4.2 Outline & tasks
 
 - Outline shape preserved: `- ` bullets, 2-space indentation per level (indent-width option is
@@ -319,12 +333,12 @@ Vitest, pure-function and store tests; **no E2E** (Q8).
    (Q28)
 7. ~~**Future — focused bullet export**~~ + ~~**context menu: select bullets**~~ +
    ~~**context menu: bullet + children**~~: merged into one design — see
-   `specs/export-scope.md` (**designed; live trial pending**). Zoom-view export
-   via a new "⚫ Export focused bullet as QR code" page-menu entry; a single
+   `specs/export-scope.md` (**iteration 1 shipped; manual checks in progress**). Zoom-view
+   export via the context-aware `Ctrl+Shift+Q` shortcut (zoomed bullet branch). The planned
+   page-menu entry was dropped: the page menu is not shown in zoom view. A single
    block-context-menu entry "📱 Export selected bullet(s) as QR code" covers
    both multi-selection and bullet+children (right-clicking a bullet selects
-   it and its children); context-aware quick-export shortcut lands as
-   iteration 2 after a manual-check gate.
+   it and its children).
 8. **NTH — dynamic singular/plural** label for the selection context-menu
    entry, if the legacy API ever supports per-invocation labels.
 9. **Far future — custom marker replacements**: generalize the `||marked||`

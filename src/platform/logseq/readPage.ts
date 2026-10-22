@@ -1,4 +1,5 @@
 import '@logseq/libs'
+import { topLevelRoots, type SelectionRoot } from '../../core/scope'
 
 /**
  * Reads a page's markdown for export.
@@ -158,7 +159,7 @@ const readFromDisk = async (pageName: string): Promise<string | undefined> => {
  * per level, which every markdown reader nests correctly. TODO/DO markers and
  * collapse state are kept when Logseq exposes them.
  */
-const renderBlocks = (blocks: unknown[], depth = 0): string[] => {
+export const renderBlocks = (blocks: unknown[], depth = 0): string[] => {
   const lines: string[] = []
   const indent = '  '.repeat(depth)
 
@@ -208,5 +209,61 @@ export const readPageMarkdown = async (pageName: string): Promise<string> => {
     return await readFromBlocks(pageName)
   } catch (error) {
     throw new Error(`no readable file on disk and the block tree failed: ${describe(error)}`)
+  }
+}
+
+const childEntities = (block: unknown): Record<string, unknown>[] => {
+  if (typeof block !== 'object' || block === null) return []
+  const children = (block as Record<string, unknown>)['children']
+  if (!Array.isArray(children)) return []
+  return children.filter(
+    (child): child is Record<string, unknown> => typeof child === 'object' && child !== null,
+  )
+}
+
+const uuidsBelow = (block: unknown): string[] =>
+  childEntities(block).flatMap((child) => {
+    const uuid = child['uuid']
+    return [...(typeof uuid === 'string' ? [uuid] : []), ...uuidsBelow(child)]
+  })
+
+interface BlockRoot extends SelectionRoot {
+  lines: string[]
+}
+
+/** Fetches one block with its subtree; null when the block no longer exists. */
+const fetchRoot = async (uuid: string): Promise<BlockRoot | null> => {
+  const block = await logseq.Editor.getBlock(uuid, { includeChildren: true })
+  if (typeof block !== 'object' || block === null) return null
+  return {
+    uuid,
+    descendantUuids: uuidsBelow(block),
+    // Rendered as its own tree at depth 0, so the root sits at level 0 wherever it lives.
+    lines: renderBlocks([block]),
+  }
+}
+
+export interface BlocksMarkdown {
+  sourceText: string
+  /** Roots that produced text, after roots nested in another root were dropped. */
+  rootCount: number
+}
+
+/**
+ * Markdown for the given blocks and their subtrees, in the order given. A
+ * block nested inside another given block is rendered once, inside that block.
+ */
+export const readBlocksMarkdown = async (uuids: string[]): Promise<BlocksMarkdown> => {
+  const fetched = await Promise.all(uuids.map(fetchRoot))
+  const readable = fetched.filter((root): root is BlockRoot => root !== null)
+  if (readable.length === 0) {
+    throw new Error('could not read the block')
+  }
+
+  const roots = topLevelRoots(readable).filter((root) => root.lines.length > 0)
+  const lines = roots.flatMap((root) => root.lines)
+  return {
+    sourceText: lines.length > 0 ? lines.join('\n') + '\n' : '',
+    rootCount: roots.length,
   }
 }

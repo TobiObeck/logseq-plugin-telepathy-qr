@@ -2,6 +2,7 @@ import { createStore } from '@xstate/store'
 import type { SavedConfig } from './host'
 import { DEFAULT_OPTIONS, type ExportOptions } from './options'
 import { paginate } from './paginate'
+import { type ExportScope } from './scope'
 import { transformMarkdown } from './transform'
 
 /**
@@ -48,6 +49,9 @@ const configHandlers = {
 
 export interface SessionSlice {
   sourceText: string | null
+  /** Provenance of `sourceText`: only labels the preview, never changes the export. */
+  scope: ExportScope
+  scopeRoots: number
   parts: string[]
   qrImages: (string | null)[]
   encodedCount: number
@@ -58,6 +62,8 @@ export interface SessionSlice {
 
 const initialSession = (): SessionSlice => ({
   sourceText: null,
+  scope: 'page',
+  scopeRoots: 1,
   parts: [],
   qrImages: [],
   encodedCount: 0,
@@ -67,9 +73,14 @@ const initialSession = (): SessionSlice => ({
 })
 
 const sessionHandlers = {
-  open: (_slice: SessionSlice, event: { sourceText: string | null }): SessionSlice => ({
+  open: (
+    _slice: SessionSlice,
+    event: { sourceText: string | null; scope?: ExportScope; scopeRoots?: number },
+  ): SessionSlice => ({
     ...initialSession(),
     sourceText: event.sourceText,
+    scope: event.scope ?? 'page',
+    scopeRoots: event.scopeRoots ?? 1,
   }),
   generate: (slice: SessionSlice & ConfigSlice): SessionSlice => {
     const parts = paginate(transformMarkdown(slice.sourceText ?? '', slice.options))
@@ -119,7 +130,12 @@ export const telepathyStore = createStore({
   on: {
     open: (
       _ctx,
-      event: { sourceText: string | null; savedConfig?: SavedConfig },
+      event: {
+        sourceText: string | null
+        savedConfig?: SavedConfig
+        scope?: ExportScope
+        scopeRoots?: number
+      },
     ): TelepathyContext => ({
       ...initialConfig(),
       ...(event.savedConfig
@@ -139,7 +155,12 @@ export const telepathyStore = createStore({
     generate: (ctx) => ({ ...ctx, ...sessionHandlers.generate(ctx) }),
     quickOpen: (
       _ctx,
-      event: { sourceText: string; config: SavedConfig },
+      event: {
+        sourceText: string
+        config: SavedConfig
+        scope?: ExportScope
+        scopeRoots?: number
+      },
     ): TelepathyContext => {
       const config: ConfigSlice = {
         options: event.config.options,
@@ -148,6 +169,8 @@ export const telepathyStore = createStore({
       const session = sessionHandlers.generate({
         ...initialSession(),
         sourceText: event.sourceText,
+        scope: event.scope ?? 'page',
+        scopeRoots: event.scopeRoots ?? 1,
         ...config,
       })
       return { ...config, ...session, stage: 'qr' }

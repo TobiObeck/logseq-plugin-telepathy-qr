@@ -4,6 +4,7 @@ import type { Host } from '../core/host'
 import { cancelActiveGeneration } from '../core/runner'
 import { telepathyStore } from '../core/store'
 import { ConfigStage } from './ConfigStage'
+import { BUILD_LABEL } from './buildInfo'
 import { QrStage } from './QrStage'
 
 /**
@@ -44,6 +45,7 @@ export const App = ({ host }: { host: Host }) => {
       <div className="tq-card" onClick={(event) => event.stopPropagation()}>
         <button type="button" className="delete tq-close" aria-label="Close" onClick={close} />
         {stage === 'config' ? <ConfigStage host={host} /> : <QrStage />}
+        <span className="tq-build" style={{display: import.meta.env.DEV ? 'span' : 'none' }}>{BUILD_LABEL}</span>
       </div>
     </div>
   )

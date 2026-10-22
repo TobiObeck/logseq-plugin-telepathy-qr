@@ -25,6 +25,8 @@ import '@logseq/libs'
  *     "(Dev) TQ probe highlight" appear? (Expected: no — PDF only.)
  *  9. Optional: open a PDF, select a highlight → right-click → does the
  *     highlight item appear there?
+ * 10. Collapse a block (click its arrow), then right-click its bullet → copy
+ *     the "collapse probe" lines (where Logseq keeps the collapsed state).
  *
  * `onRouteChanged` payloads are logged automatically the whole time —
  * just perform the navigation steps with the DevTools console open.
@@ -152,6 +154,21 @@ export const registerDevProbes = (): void => {
       }
     } catch (error) {
       console.log(P, 'getBlock threw:', error)
+    }
+    try {
+      // Collapse-state probe (specs/export-scope.md §8): where does Logseq keep it?
+      const root = (await logseq.Editor.getBlock(e.uuid)) as unknown as AnyBlock | null
+      console.log(P, 'collapse probe: root keys →', root ? Object.keys(root) : null)
+      console.log(P, "collapse probe: root['collapsed?'] →", root?.['collapsed?'])
+      console.log(P, 'collapse probe: root.properties →', JSON.stringify(root?.['properties']))
+      console.log(P, 'collapse probe: root.content (full) →', JSON.stringify(root?.['content']))
+      console.log(
+        P,
+        'collapse probe: getBlockProperty(collapsed) →',
+        await logseq.Editor.getBlockProperty(e.uuid, 'collapsed'),
+      )
+    } catch (error) {
+      console.log(P, 'collapse probe threw:', error)
     }
     console.log(P, '===== END BLOCK CONTEXT MENU =====')
   })

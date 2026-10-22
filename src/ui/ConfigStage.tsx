@@ -5,6 +5,7 @@ import { EXAMPLE_MD } from '../core/example'
 import type { ExportOptions } from '../core/options'
 import { startGeneration } from '../core/runner'
 import { telepathyStore } from '../core/store'
+import { scopeLabel } from '../core/scope'
 import { transformMarkdown } from '../core/transform'
 import { Segmented } from './Segmented'
 
@@ -137,7 +138,7 @@ export const ConfigStage = ({ host }: { host: Host }) => {
             onChange={(previewSource) => telepathyStore.send({ type: 'setPreviewSource', previewSource })}
             choices={[
               { value: 'example', label: 'Example' },
-              { value: 'page', label: 'This page' },
+              { value: 'page', label: scopeLabel(ctx.scope, ctx.scopeRoots) },
             ]}
           />
         </div>
