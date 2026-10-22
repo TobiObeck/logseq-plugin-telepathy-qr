@@ -9,10 +9,14 @@ const output = (options: ExportOptions): string =>
 
 describe('example page', () => {
   it('resolves its refs and embeds through the same expander as a real page', () => {
-    expect(EXAMPLE_TEXTS.expandedText).toContain('Next step: resolved block ref')
-    expect(EXAMPLE_TEXTS.expandedText).toContain('    - resolved block embed')
-    expect(EXAMPLE_TEXTS.expandedText).toContain('    - resolved page embed')
+    expect(EXAMPLE_TEXTS.expandedText).toContain('Referencing a block: resolved block ref content')
+    expect(EXAMPLE_TEXTS.expandedText).toContain('Embedding a block: resolved block embed content')
     expect(EXAMPLE_TEXTS.expandedText).not.toContain('((6ad77db3')
+  })
+
+  it('leaves an inline page embed as a placeholder, since only whole-line page embeds expand', () => {
+    expect(EXAMPLE_TEXTS.expandedText).toContain('Embedding a page: {{embed [[Daily Template]]}}')
+    expect(output(DEFAULT_OPTIONS)).toContain('Embedding a page: [embed: Daily Template]')
   })
 
   it('keeps its raw source as Input, whatever the refs option', () => {
