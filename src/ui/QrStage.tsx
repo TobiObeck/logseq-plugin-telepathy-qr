@@ -4,6 +4,7 @@ import { cancelActiveGeneration } from '../core/runner'
 import { telepathyStore } from '../core/store'
 import type { QrTab } from '../core/store'
 import { Segmented } from './Segmented'
+import './rendered.css'
 
 /**
  * Wizard step 2 (DESIGN.md §2.3): the QR plate with prev/counter/next, plus the

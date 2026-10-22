@@ -1,0 +1,131 @@
+/*
+ * The Rendered tab (DESIGN.md §5): markdown of the exact text the QR codes
+ * encode. Bulma's reset strips list markers and indentation, zeroes heading
+ * sizes, and flattens paragraph spacing, so the markdown elements are styled
+ * here, scoped to the container with nested selectors.
+ */
+.tq-rendered {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 0.625rem 0.875rem;
+  border: 1px solid var(--tq-border);
+  border-radius: 6px;
+  line-height: 1.6;
+
+  & p {
+    margin: 0 0 0.6em;
+  }
+
+  & h1,
+  & h2,
+  & h3,
+  & h4,
+  & h5,
+  & h6 {
+    font-weight: 600;
+    line-height: 1.25;
+    margin: 0.9em 0 0.4em;
+  }
+
+  & h1 {
+    font-size: 1.5em;
+  }
+
+  & h2 {
+    font-size: 1.3em;
+  }
+
+  & h3 {
+    font-size: 1.15em;
+  }
+
+  & h4,
+  & h5,
+  & h6 {
+    font-size: 1em;
+  }
+
+  & ul,
+  & ol {
+    margin: 0 0 0.6em 1.75em;
+    padding: 0;
+  }
+
+  & ul {
+    list-style: disc outside;
+
+    & ul {
+      list-style-type: circle;
+
+      & ul {
+        list-style-type: square;
+      }
+    }
+  }
+
+  & ol {
+    list-style: decimal outside;
+  }
+
+  & li {
+    margin: 0.15em 0;
+
+    & > p {
+      margin: 0;
+    }
+  }
+
+  & blockquote {
+    margin: 0 0 0.6em;
+    padding-left: 0.75em;
+    border-left: 3px solid var(--tq-border);
+    color: var(--tq-muted);
+  }
+
+  & code {
+    font-family: monospace;
+    font-size: 0.9em;
+    background: rgba(128, 128, 128, 0.15);
+    padding: 0 0.25em;
+    border-radius: 3px;
+  }
+
+  & pre {
+    overflow: auto;
+    background: rgba(128, 128, 128, 0.12);
+    padding: 0.5rem;
+    border-radius: 4px;
+
+    & code {
+      background: none;
+      padding: 0;
+    }
+  }
+
+  & table {
+    border-collapse: collapse;
+    margin: 0 0 0.6em;
+  }
+
+  & th,
+  & td {
+    border: 1px solid var(--tq-border);
+    padding: 0.25em 0.5em;
+  }
+
+  & a {
+    color: inherit;
+    text-decoration: underline;
+  }
+
+  & hr {
+    border: 0;
+    border-top: 1px solid var(--tq-border);
+    margin: 0.8em 0;
+  }
+
+  & img {
+    max-width: 100%;
+  }
+}

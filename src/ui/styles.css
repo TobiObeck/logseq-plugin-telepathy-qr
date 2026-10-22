@@ -340,23 +340,6 @@ body {
   word-break: break-word;
 }
 
-.tq-rendered {
-  flex: 1;
-  min-height: 0;
-  overflow: auto;
-  padding: 0.625rem 0.875rem;
-  border: 1px solid var(--tq-border);
-  border-radius: 6px;
-  line-height: 1.6;
-}
-
-.tq-rendered pre {
-  overflow: auto;
-  background: rgba(128, 128, 128, 0.12);
-  padding: 0.5rem;
-  border-radius: 4px;
-}
-
 .tq-hint {
   font-size: 0.8rem;
   color: var(--tq-muted);
