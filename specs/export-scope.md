@@ -77,7 +77,7 @@ cb({uuid}):                              # SQ23: a bullet right-click replaces a
 
 The blue-selection branch (`getSelectedBlocks()` non-empty → `dedupe`) is still used by
 the shortcut (§6), where no right-click happens and multi-selection can persist.
-```
+
 
 ### 3.3 Modal labels (scope provenance)
 
