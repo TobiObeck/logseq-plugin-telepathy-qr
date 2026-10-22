@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { readBlocksMarkdown, renderBlocks } from './readPage'
+import { logseqRefSource, readBlocksMarkdown, renderBlocks } from './readPage'
 
 // The real module expects a plugin iframe (`self`); tests drive `logseq` directly.
 vi.mock('@logseq/libs', () => ({}))
@@ -120,5 +120,38 @@ describe('readBlocksMarkdown', () => {
 
     const result = await readBlocksMarkdown(['blank', 'real'])
     expect(result).toEqual({ sourceText: '- text\n', rootCount: 1 })
+  })
+})
+
+describe('logseqRefSource', () => {
+  beforeEach(() => {
+    vi.stubGlobal('logseq', {
+      Editor: {
+        getBlock: vi.fn(async (uuid: string) => nodes[uuid] ?? null),
+        getPageBlocksTree: vi.fn(async (name: string) => (name === 'Home' ? [nodes['home']] : [])),
+      },
+    })
+  })
+
+  it('renders a block subtree at level 0', async () => {
+    fixture({ uuid: 'a', original: 'alpha', children: [{ uuid: 'a1', original: 'kid' }] })
+    expect(await logseqRefSource.blockTree('a')).toBe('- alpha\n  - kid')
+  })
+
+  it('reads a missing block as null', async () => {
+    expect(await logseqRefSource.blockTree('gone')).toBeNull()
+  })
+
+  it('reads a block whose lookup throws as null', async () => {
+    vi.stubGlobal('logseq', {
+      Editor: { getBlock: vi.fn(async () => Promise.reject(new Error('boom'))) },
+    })
+    expect(await logseqRefSource.blockTree('x')).toBeNull()
+  })
+
+  it('renders a page tree, and reads an empty page as an empty string', async () => {
+    fixture({ uuid: 'home', original: 'home text' })
+    expect(await logseqRefSource.pageTree('Home')).toBe('- home text')
+    expect(await logseqRefSource.pageTree('Empty')).toBe('')
   })
 })

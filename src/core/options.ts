@@ -18,7 +18,7 @@ export interface ExportOptions {
   images: ImageMode
   tasks: TaskMode
   externalLinks: ExternalLinkMode
-  /** `resolve` is greyed out in v1; it lands as an NTH feature. */
+  /** `resolve` expands block refs and embeds two levels deep (core/refs.ts). */
   refs: RefMode
 }
 
@@ -28,5 +28,5 @@ export const DEFAULT_OPTIONS: ExportOptions = {
   images: 'placeholder',
   tasks: 'logseq',
   externalLinks: 'markdown',
-  refs: 'strip',
+  refs: 'resolve',
 }

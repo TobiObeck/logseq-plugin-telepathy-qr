@@ -2,6 +2,7 @@ import { createStore } from '@xstate/store'
 import type { SavedConfig } from './host'
 import { DEFAULT_OPTIONS, type ExportOptions } from './options'
 import { paginate } from './paginate'
+import { effectiveSource, type SourceTexts } from './refs'
 import { type ExportScope } from './scope'
 import { transformMarkdown } from './transform'
 
@@ -47,8 +48,7 @@ const configHandlers = {
 
 /* ----------------------------------------------------------------- session */
 
-export interface SessionSlice {
-  sourceText: string | null
+export interface SessionSlice extends SourceTexts {
   /** Provenance of `sourceText`: only labels the preview, never changes the export. */
   scope: ExportScope
   scopeRoots: number
@@ -62,6 +62,7 @@ export interface SessionSlice {
 
 const initialSession = (): SessionSlice => ({
   sourceText: null,
+  expandedText: null,
   scope: 'page',
   scopeRoots: 1,
   parts: [],
@@ -75,15 +76,18 @@ const initialSession = (): SessionSlice => ({
 const sessionHandlers = {
   open: (
     _slice: SessionSlice,
-    event: { sourceText: string | null; scope?: ExportScope; scopeRoots?: number },
+    event: { sourceText: string | null; expandedText?: string | null; scope?: ExportScope; scopeRoots?: number },
   ): SessionSlice => ({
     ...initialSession(),
     sourceText: event.sourceText,
+    expandedText: event.expandedText ?? null,
     scope: event.scope ?? 'page',
     scopeRoots: event.scopeRoots ?? 1,
   }),
   generate: (slice: SessionSlice & ConfigSlice): SessionSlice => {
-    const parts = paginate(transformMarkdown(slice.sourceText ?? '', slice.options))
+    // Empty output encodes nothing: an empty QR code is never a useful result.
+    const text = transformMarkdown(effectiveSource(slice, slice.options), slice.options)
+    const parts = text.trim() === '' ? [] : paginate(text)
     return {
       ...slice,
       parts,
@@ -91,7 +95,7 @@ const sessionHandlers = {
       encodedCount: 0,
       index: 0,
       tab: 'qr',
-      generating: true,
+      generating: parts.length > 0,
     }
   },
   partEncoded: (slice: SessionSlice, event: { index: number; dataUrl: string }): SessionSlice => {
@@ -132,6 +136,7 @@ export const telepathyStore = createStore({
       _ctx,
       event: {
         sourceText: string | null
+        expandedText?: string | null
         savedConfig?: SavedConfig
         scope?: ExportScope
         scopeRoots?: number
@@ -157,6 +162,7 @@ export const telepathyStore = createStore({
       _ctx,
       event: {
         sourceText: string
+        expandedText?: string | null
         config: SavedConfig
         scope?: ExportScope
         scopeRoots?: number
@@ -169,11 +175,13 @@ export const telepathyStore = createStore({
       const session = sessionHandlers.generate({
         ...initialSession(),
         sourceText: event.sourceText,
+        expandedText: event.expandedText ?? null,
         scope: event.scope ?? 'page',
         scopeRoots: event.scopeRoots ?? 1,
         ...config,
       })
-      return { ...config, ...session, stage: 'qr' }
+      // Nothing to encode: stay on Config, where the empty-export hint explains why.
+      return { ...config, ...session, stage: session.parts.length > 0 ? 'qr' : 'config' }
     },
     partEncoded: (ctx, event: { index: number; dataUrl: string }): TelepathyContext => ({
       ...ctx,

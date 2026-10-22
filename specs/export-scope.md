@@ -300,6 +300,8 @@ through store events, not the Host. (Keeps `core`/`ui` free of Logseq types.)
 | 27 | Not possible in zoom view: plugin page-menu items are not shown there. Covered by `Ctrl+Shift+Q` and the palette command "Export focused bullet" (`registerCommandPalette`, works in zoom view). |
 | 28 | Open: Clean already drops internal keys (`id`, `collapsed`, `background-color`, `custom_id`, `macro_id`, `hl-*`, `card-*`). Collapse markers matter only in Raw; whether raw scoped exports can carry them depends on the collapse probe (probe item 10). |
 | 29 | Decision A: no new option for Logseq-only markers. Clean removes them, Raw keeps everything. Known flaw (C): Clean still passes `SCHEDULED:` / `DEADLINE:` lines and `:LOGBOOK:` drawers through; fix by extending the Clean ruleset, not by adding an option. Documented in DESIGN.md §4.1a. |
+| 30 | Refs and embeds resolve two levels deep, hard-coded (`REF_DEPTH = 2`). `refs: resolve` is enabled and is the default; saved configs keep their saved `refs` value. Interpretation: "block embed & page refs" = `{{embed ((uuid))}}`, `{{embed [[Page]]}}`, and bare `((uuid))`. Plain `[[page]]` links remain governed by the wiki-links option. |
+| 31 | Empty exports never reach the QR stage. The entry points toast "nothing to export" for an empty source. The Config stage disables Generate with "Export is empty — check your options" when the chosen options produce nothing. The store encodes no parts for empty output. |
 
 ## 12. NTH & far-future bookings from this session
 

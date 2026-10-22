@@ -33,7 +33,6 @@ export const QrStage = () => {
 
       {tab === 'qr' && (
         <div className="tq-qr-wrap">
-          {part === '' && <div className="tq-hint">Export is empty — check your options.</div>}
           <div className="tq-qr-plate">
             {image !== null && image !== undefined ? (
               <img src={image} alt={`QR part ${index + 1} of ${parts.length}`} />

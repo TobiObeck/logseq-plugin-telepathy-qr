@@ -104,7 +104,7 @@ greyed/disabled when Raw is selected (Q11, Q17).
 | 3 | Images | **Placeholder** \| Remove \| `\|\|marked\|\|` | Clean only (Q5, Q17) |
 | 4 | Tasks | **Logseq markers** \| Markdown checkboxes | Clean only (Q17, Q19) |
 | 5 | External links | **Markdown** \| Plain URL | Clean only (Q20, Q27, Q33) |
-| 6 | Refs/embeds | **Strip placeholder** \| Resolve *(greyed, "coming soon")* | Clean only; Resolve lands as NTH with depth-2 default (Q6, Q17) |
+| 6 | Refs/embeds | **Resolve** \| Strip placeholder | Clean only; Resolve expands block refs and embeds two levels deep, hard-coded (Q6, Q17, SQ30) |
 
 ---
 
@@ -165,12 +165,21 @@ Form: `![alt](path)`.
 - **Remove**: the image token is deleted entirely (Q5).
 - **Marked**: `||alt||` / `||<basename>||` (Q17).
 
-### 4.5 Block references & embeds (Clean only, v1 = strip)
+### 4.5 Block references & embeds (Clean only; `resolve` default, `strip` optional)
 
+- **Resolve** (default, SQ30): expanded before the transform, in `core/refs.ts`.
+  - A whole-line `{{embed ((uuid))}}` becomes the block's subtree at the line's indent.
+  - A whole-line `{{embed [[Page]]}}` becomes the page's block tree at the line's indent.
+  - An inline `((uuid))` becomes the target block's first line.
+  - Depth is hard-coded to two levels: refs written in the page are level one, refs inside
+    level-one content are level two. Deeper refs stay as written and become placeholders.
+  - Fenced code and non-embed macros (`{{query …}}`) are never expanded. Missing blocks and
+    pages stay as written.
+- **Strip** (`refs: strip`): the placeholders below, as in v1.
+- Placeholders (any refs left after expansion, or all of them under Strip):
 - `((uuid))` → `[block reference]`
 - `{{embed ((uuid))}}` → `[embed: block reference]`
 - `{{embed [[Page]]}}` → `[embed: Page]` (Q13)
-- Resolve-to-content is the NTH feature (default depth 2 when it lands) (Q6, Q17).
 - Other macros (`{{query …}}`, `{{renderer …}}`) are untouched in v1 — **including wiki links
   and refs inside them**: macro spans are protected from every rewrite (pinned by the
   vault's `queries.md` fixture; added post-sign-off when the first real query page showed

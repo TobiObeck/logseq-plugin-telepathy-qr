@@ -1,4 +1,5 @@
 import '@logseq/libs'
+import type { RefSource } from '../../core/refs'
 import { topLevelRoots, type SelectionRoot } from '../../core/scope'
 
 /**
@@ -267,3 +268,25 @@ export const readBlocksMarkdown = async (uuids: string[]): Promise<BlocksMarkdow
     rootCount: roots.length,
   }
 }
+
+/** Content for block refs and embeds, read through the editor API. Unreadable targets count as missing. */
+export const logseqRefSource: RefSource = {
+  blockTree: async (uuid) => {
+    try {
+      const block = await logseq.Editor.getBlock(uuid, { includeChildren: true })
+      if (typeof block !== 'object' || block === null) return null
+      return renderBlocks([block]).join('\n')
+    } catch {
+      return null
+    }
+  },
+  pageTree: async (name) => {
+    try {
+      const blocks = await logseq.Editor.getPageBlocksTree(name)
+      return Array.isArray(blocks) ? renderBlocks(blocks).join('\n') : null
+    } catch {
+      return null
+    }
+  },
+}
+

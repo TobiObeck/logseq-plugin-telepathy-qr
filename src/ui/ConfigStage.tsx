@@ -1,9 +1,10 @@
 import { useSelector } from '@xstate/store-react'
 import { useRef, type UIEvent } from 'react'
 import type { Host } from '../core/host'
-import { EXAMPLE_MD } from '../core/example'
+import { EXAMPLE_TEXTS } from '../core/example'
 import type { ExportOptions } from '../core/options'
 import { startGeneration } from '../core/runner'
+import { effectiveSource, type SourceTexts } from '../core/refs'
 import { telepathyStore } from '../core/store'
 import { scopeLabel } from '../core/scope'
 import { transformMarkdown } from '../core/transform'
@@ -20,8 +21,14 @@ export const ConfigStage = ({ host }: { host: Host }) => {
 
   const set = (patch: Partial<ExportOptions>) => telepathyStore.send({ type: 'setOption', patch })
 
-  const input = ctx.previewSource === 'example' ? EXAMPLE_MD : (ctx.sourceText ?? '')
-  const output = transformMarkdown(input, options)
+  // Input is the raw source of the active preview, so it changes only when the
+  // preview toggle changes. Output is the text the QR codes encode, built from
+  // the same two steps the export uses (resolve refs, then transform).
+  const previewTexts: SourceTexts = ctx.previewSource === 'example' ? EXAMPLE_TEXTS : ctx
+  const input = previewTexts.sourceText ?? ''
+  const output = transformMarkdown(effectiveSource(previewTexts, options), options)
+  // The button encodes the page, not the preview, so it checks the real export.
+  const exportEmpty = transformMarkdown(effectiveSource(ctx, options), options).trim() === ''
 
   const handleGenerate = () => {
     void host.persistConfig({ options: ctx.options, previewSource: ctx.previewSource })
@@ -121,7 +128,7 @@ export const ConfigStage = ({ host }: { host: Host }) => {
               disabled={raw}
               choices={[
                 { value: 'strip', label: 'Strip placeholder' },
-                { value: 'resolve', label: 'Resolve', disabled: true, title: 'Coming soon (NTH feature)' },
+                { value: 'resolve', label: 'Resolve' },
               ]}
             />
           </div>
@@ -161,10 +168,11 @@ export const ConfigStage = ({ host }: { host: Host }) => {
       </div>
 
       <div className="tq-footer">
+        {exportEmpty && <div className="tq-hint">Export is empty — check your options.</div>}
         <button
           type="button"
           className="button is-primary"
-          disabled={ctx.generating}
+          disabled={ctx.generating || exportEmpty}
           onClick={handleGenerate}
         >
           {ctx.generating ? 'Generating…' : 'Generate QR Code(s)'}

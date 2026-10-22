@@ -6,11 +6,12 @@ import { createRoot } from 'react-dom/client'
 import type { Host, SavedConfig } from '../../core/host'
 import { DEFAULT_OPTIONS } from '../../core/options'
 import { cancelActiveGeneration, startRunner } from '../../core/runner'
+import { expandRefs } from '../../core/refs'
 import type { ExportScope } from '../../core/scope'
 import { telepathyStore } from '../../core/store'
 import { App } from '../../ui/App'
 import { BUILD_LABEL } from '../../ui/buildInfo'
-import { readBlocksMarkdown, readPageMarkdown } from './readPage'
+import { readBlocksMarkdown, logseqRefSource, readPageMarkdown } from './readPage'
 import { registerDevProbes } from './probe'
 import { getZoomedBlockUuid, watchRoute } from './zoom'
 
@@ -103,14 +104,36 @@ const refuseDbGraph = async (): Promise<boolean> => {
   return true
 }
 
-/** Opens the Config stage on a source. The scope only labels the preview. */
-const openConfigStage = async (
+/** A scope's source text with its block refs and embeds resolved (core/refs.ts). */
+interface ExportSource {
+  sourceText: string
+  expandedText: string
+  scope: ExportScope
+  scopeRoots: number
+}
+
+const withRefs = async (
   sourceText: string,
   scope: ExportScope,
   scopeRoots: number,
-): Promise<void> => {
+): Promise<ExportSource> => ({
+  sourceText,
+  expandedText: await expandRefs(sourceText, logseqRefSource),
+  scope,
+  scopeRoots,
+})
+
+/**
+ * Opens the Config stage on a source. The scope only labels the preview. A
+ * source with no text has nothing to encode, so it stops here with a toast.
+ */
+const openConfigStage = async (source: ExportSource): Promise<void> => {
+  if (source.sourceText.trim() === '') {
+    host.toast('TelepathyQR: nothing to export.', 'warning')
+    return
+  }
   const savedConfig = await host.loadSavedConfig()
-  telepathyStore.send({ type: 'open', sourceText, savedConfig, scope, scopeRoots })
+  telepathyStore.send({ type: 'open', ...source, savedConfig })
   await logseq.showMainUI()
 }
 
@@ -124,8 +147,7 @@ const startExport = async (pageName?: string): Promise<void> => {
       return
     }
 
-    const sourceText = await readPageMarkdown(name)
-    await openConfigStage(sourceText, 'page', 1)
+    await openConfigStage(await withRefs(await readPageMarkdown(name), 'page', 1))
   } catch (error) {
     console.error('[TelepathyQR]', error)
     const reason = error instanceof Error ? error.message : String(error)
@@ -148,34 +170,24 @@ const exportSelectedBlocks = async (uuid: string): Promise<void> => {
     if (await refuseDbGraph()) return
 
     const { sourceText, rootCount } = await readBlocksMarkdown([uuid])
-    if (sourceText.trim() === '') {
-      host.toast('TelepathyQR: nothing to export.', 'warning')
-      return
-    }
-    await openConfigStage(sourceText, 'focused', rootCount)
+    await openConfigStage(await withRefs(sourceText, 'focused', rootCount))
   } catch (error) {
     reportBlockFailure(error)
   }
 }
 
-interface QuickSource {
-  sourceText: string
-  scope: ExportScope
-  scopeRoots: number
-}
-
 /** Reads the blocks for a scoped quick export; null (after a toast) when nothing is readable. */
-const readScopedQuickSource = async (
+const readScopedSource = async (
   uuids: string[],
   scope: 'selection' | 'focused',
-): Promise<QuickSource | null> => {
+): Promise<ExportSource | null> => {
   try {
     const { sourceText, rootCount } = await readBlocksMarkdown(uuids)
     if (sourceText.trim() === '') {
       host.toast('TelepathyQR: nothing to export.', 'warning')
       return null
     }
-    return { sourceText, scope, scopeRoots: rootCount }
+    return await withRefs(sourceText, scope, rootCount)
   } catch (error) {
     reportBlockFailure(error)
     return null
@@ -199,13 +211,13 @@ const startQuickExport = async (mode: QuickMode = 'auto'): Promise<void> => {
     const selected = (await logseq.Editor.getSelectedBlocks()) ?? []
     const zoomed = getZoomedBlockUuid()
 
-    let source: QuickSource | null
+    let source: ExportSource | null
     if (mode === 'selection' || (mode === 'auto' && selected.length > 0)) {
       if (selected.length === 0) {
         host.toast('TelepathyQR: no blocks selected.', 'warning')
         return
       }
-      source = await readScopedQuickSource(
+      source = await readScopedSource(
         selected.map((block) => block.uuid),
         'selection',
       )
@@ -214,25 +226,23 @@ const startQuickExport = async (mode: QuickMode = 'auto'): Promise<void> => {
         host.toast('TelepathyQR: no focused bullet — zoom into a bullet first.', 'warning')
         return
       }
-      source = await readScopedQuickSource([zoomed], 'focused')
+      source = await readScopedSource([zoomed], 'focused')
     } else {
       const name = await currentPageName()
       if (name === undefined) {
         host.toast('TelepathyQR: no current page to export.', 'warning')
         return
       }
-      source = { sourceText: await readPageMarkdown(name), scope: 'page', scopeRoots: 1 }
+      source = await withRefs(await readPageMarkdown(name), 'page', 1)
     }
     if (source === null) return
+    if (source.sourceText.trim() === '') {
+      host.toast('TelepathyQR: nothing to export.', 'warning')
+      return
+    }
 
     const config = await host.loadSavedConfig()
-    telepathyStore.send({
-      type: 'quickOpen',
-      sourceText: source.sourceText,
-      config,
-      scope: source.scope,
-      scopeRoots: source.scopeRoots,
-    })
+    telepathyStore.send({ type: 'quickOpen', ...source, config })
     startRunner(telepathyStore)
     await logseq.showMainUI()
   } catch (error) {

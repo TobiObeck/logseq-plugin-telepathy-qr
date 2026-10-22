@@ -1,7 +1,9 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import type { SavedConfig } from './host'
 import { DEFAULT_OPTIONS, type ExportOptions } from './options'
+import { effectiveSource } from './refs'
 import { telepathyStore } from './store'
+import { transformMarkdown } from './transform'
 
 const context = () => telepathyStore.getSnapshot().context
 
@@ -167,5 +169,60 @@ describe('export session store', () => {
     telepathyStore.send({ type: 'close' })
     expect(context().scope).toBe('page')
     expect(context().scopeRoots).toBe(1)
+  })
+
+  /* ---------------------------------------------- refs and empty sources */
+
+  it('exports the resolved text under the resolve option', () => {
+    telepathyStore.send({
+      type: 'open',
+      sourceText: 'see ((a))\n',
+      expandedText: 'see alpha\n',
+      savedConfig: savedCfg({ options: { refs: 'resolve' } }),
+    })
+    telepathyStore.send({ type: 'generate' })
+    expect(context().parts.join('')).toContain('alpha')
+    expect(context().parts.join('')).not.toContain('((a))')
+  })
+
+  it('exports the raw text under the strip option', () => {
+    telepathyStore.send({
+      type: 'open',
+      sourceText: 'see ((a))\n',
+      expandedText: 'see alpha\n',
+      savedConfig: savedCfg({ options: { refs: 'strip' } }),
+    })
+    telepathyStore.send({ type: 'generate' })
+    expect(context().parts.join('')).toContain('[block reference]')
+  })
+
+  it('encodes nothing for an empty source', () => {
+    telepathyStore.send({ type: 'open', sourceText: '' })
+    telepathyStore.send({ type: 'generate' })
+    expect(context().parts).toEqual([])
+    expect(context().generating).toBe(false)
+  })
+
+  it('encodes nothing when the options strip the whole source', () => {
+    // Clean drops internal property lines, so this page exports as nothing.
+    telepathyStore.send({ type: 'open', sourceText: 'id:: 11111111-2222-3333-4444-555555555555\n' })
+    telepathyStore.send({ type: 'generate' })
+    expect(context().parts).toEqual([])
+    expect(context().generating).toBe(false)
+  })
+
+  /* ----------------------------------------- QR text equals the preview Output */
+
+  it('the first QR part is the Output the Config preview shows', () => {
+    const texts = {
+      sourceText: '- I click ref\n  id:: 6ada5fa4-0a9a-4255-aeb7-b2f960d8c54d\n- Here is a reference: ((6ada5fa4-0a9a-4255-aeb7-b2f960d8c54d))\n',
+      expandedText: '- I click ref\n  id:: 6ada5fa4-0a9a-4255-aeb7-b2f960d8c54d\n- Here is a reference: I click ref\n',
+    }
+    telepathyStore.send({ type: 'open', ...texts })
+    telepathyStore.send({ type: 'generate' })
+
+    const previewOutput = transformMarkdown(effectiveSource(texts, DEFAULT_OPTIONS), DEFAULT_OPTIONS)
+    expect(context().parts[0]).toBe(previewOutput)
+    expect(previewOutput).not.toContain('id::')
   })
 })

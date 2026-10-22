@@ -10,7 +10,7 @@ import type { ExportOptions } from './options'
  * links, task markers) rewritten per option.
  */
 
-const FENCE = /^\s*(?:[-*+]\s+)?(```|~~~)/
+export const FENCE = /^\s*(?:[-*+]\s+)?(```|~~~)/
 const PROPERTY_LINE = /^(\s*)([A-Za-z0-9_-]+)::(?:[ \t](.*))?$/
 const TASK_LINE = /^(\s*(?:[-*+]\s+)?)(TODO|DOING|NOW|LATER|WAITING|DONE|CANCELED)(?=\s)/
 

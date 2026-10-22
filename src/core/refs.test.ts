@@ -1,0 +1,85 @@
+import { describe, expect, it } from 'vitest'
+import { DEFAULT_OPTIONS } from './options'
+import { effectiveSource, expandRefs, type RefSource } from './refs'
+
+const sourceOf = (blocks: Record<string, string>, pages: Record<string, string> = {}): RefSource => ({
+  blockTree: async (uuid) => blocks[uuid] ?? null,
+  pageTree: async (name) => pages[name] ?? null,
+})
+
+describe('expandRefs', () => {
+  it('replaces an inline ref with the target block text', async () => {
+    const source = sourceOf({ a: '- alpha\n  - kid' })
+    expect(await expandRefs('see ((a)) now', source)).toBe('see alpha now')
+  })
+
+  it('expands a whole-line block embed to its subtree at the line indent', async () => {
+    const source = sourceOf({ a: '- alpha\n  - kid' })
+    const page = '- Intro\n  - {{embed ((a))}}'
+    expect(await expandRefs(page, source)).toBe('- Intro\n  - alpha\n    - kid')
+  })
+
+  it('expands a whole-line page embed to the page tree', async () => {
+    const source = sourceOf({}, { Home: '- one\n- two' })
+    expect(await expandRefs('- {{embed [[Home]]}}', source)).toBe('- one\n- two')
+  })
+
+  it('resolves two levels and leaves the third as written', async () => {
+    const source = sourceOf({
+      a: '- A\n  - {{embed ((b))}}',
+      b: '- B\n  - {{embed ((c))}}',
+      c: '- C',
+    })
+    expect(await expandRefs('{{embed ((a))}}', source)).toBe('- A\n  - B\n    - {{embed ((c))}}')
+  })
+
+  it('stops inline refs at the second level', async () => {
+    const source = sourceOf({ a: 'A ((b))', b: 'B ((c))', c: 'C' })
+    expect(await expandRefs('x ((a))', source)).toBe('x A B ((c))')
+  })
+
+  it('leaves fenced code untouched', async () => {
+    const source = sourceOf({ a: 'alpha' })
+    const page = '```\n((a))\n{{embed ((a))}}\n```'
+    expect(await expandRefs(page, source)).toBe(page)
+  })
+
+  it('leaves non-embed macros untouched', async () => {
+    const source = sourceOf({ a: 'alpha' })
+    expect(await expandRefs('{{query ((a))}}', source)).toBe('{{query ((a))}}')
+  })
+
+  it('keeps refs to missing blocks and pages as written', async () => {
+    const source = sourceOf({})
+    const page = 'x ((gone))\n{{embed ((gone))}}\n{{embed [[Nowhere]]}}'
+    expect(await expandRefs(page, source)).toBe(page)
+  })
+
+  it('terminates on a block that embeds itself', async () => {
+    const source = sourceOf({ a: '- self {{embed ((a))}}' })
+    const result = await expandRefs('{{embed ((a))}}', source)
+    expect(result).toContain('self')
+  })
+})
+
+describe('effectiveSource', () => {
+  const texts = { sourceText: 'raw ((a))', expandedText: 'raw alpha' }
+
+  it('uses the resolved text in Clean mode with resolve', () => {
+    expect(effectiveSource(texts, { ...DEFAULT_OPTIONS, refs: 'resolve' })).toBe('raw alpha')
+  })
+
+  it('uses the raw text with strip', () => {
+    expect(effectiveSource(texts, { ...DEFAULT_OPTIONS, refs: 'strip' })).toBe('raw ((a))')
+  })
+
+  it('uses the raw text in Raw mode, whatever the refs option', () => {
+    expect(
+      effectiveSource(texts, { ...DEFAULT_OPTIONS, flavor: 'raw', refs: 'resolve' }),
+    ).toBe('raw ((a))')
+  })
+
+  it('falls back to the empty string when there is no source', () => {
+    expect(effectiveSource({ sourceText: null, expandedText: null }, DEFAULT_OPTIONS)).toBe('')
+  })
+})
