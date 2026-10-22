@@ -354,6 +354,12 @@ Vitest, pure-function and store tests; **no E2E** (Q8).
 9. **Far future — custom marker replacements**: generalize the `||marked||`
    modes into user-configurable replace-prefix / replace-suffix input fields
    (opinionated settings), persisted like other options.
+10. **Future grilling session — config directions**: the config may end up with four
+    directions: (a) **Raw**, kept for importing into another Logseq graph; (b) recreate Logseq
+    features as closely as possible with standard markdown; (c) replace them with plain standard
+    markdown syntax, no special sparkles; (d) replace them with custom syntax hints for manual
+    resolving and special use cases. Today's flavours (Raw, Clean) and sub-settings only cover
+    parts of this, so the config structure is open.
 
 ---
 
