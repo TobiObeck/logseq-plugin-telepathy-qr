@@ -12,6 +12,7 @@
   border: 1px solid var(--tq-border);
   border-radius: 6px;
   line-height: 1.6;
+  margin-bottom: 1rem;
 
   & p {
     margin: 0 0 0.6em;

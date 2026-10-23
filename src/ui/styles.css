@@ -330,6 +330,7 @@ body {
   min-height: 0;
   overflow: auto;
   margin: 0;
+  margin-bottom: 1rem;
   padding: 0.625rem;
   border: 1px solid var(--tq-border);
   border-radius: 6px;
