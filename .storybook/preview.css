@@ -1,0 +1,13 @@
+.tq-story-canvas {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 1rem;
+  background: #f4f5f7;
+}
+
+.tq-story-canvas .tq-card {
+  height: min(860px, calc(100vh - 2rem));
+}

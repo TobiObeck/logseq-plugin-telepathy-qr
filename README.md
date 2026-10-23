@@ -50,7 +50,11 @@ pnpm dev      # vite dev server for Logseq plugin loading
 pnpm build    # typecheck + production bundle into dist/
 pnpm test     # vitest: transformer, paginator, store, preview, layer boundary
 pnpm lint     # oxlint
+pnpm storybook # local component workbench (Vite-backed, no Logseq needed)
 ```
+
+Storybook includes isolated stories for the Config and QR stages in `src/ui/`.
+Use `pnpm build-storybook` to verify or build the workbench.
 
 ### Fixtures: a real Logseq graph in the repo
 
