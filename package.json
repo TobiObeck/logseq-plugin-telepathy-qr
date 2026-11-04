@@ -1,7 +1,13 @@
 {
   "name": "logseq-plugin-telepathy-qr",
   "private": true,
-  "version": "0.1.0",
+  "version": "1.0.0",
+  "description": "Export a Logseq page or a single bullet as a (sequence) of QR code(s) and scan it with another device. No cloud, no app, just seemingly telepathic transmission with light 📱📷⚡",
+  "license": "AGPL-3.0-only",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/TobiObeck/logseq-plugin-telepathy-qr.git"
+  },
   "type": "module",
   "logseq": {
     "id": "logseq-plugin-telepathy-qr",

@@ -1,24 +1,63 @@
 # TelepathyQR
 
-Export a Logseq page as a sequence of QR codes and scan it with another device.
-Telepathy for your notes: no cloud, no sync, just light.
+Export a Logseq page or a single bullet as a (sequence) of QR code(s). Simply scan the QR code(s) with your phone 📱📷⚡. A quick way to transfer notes from your computer to your phone. No, cloud, no special app, no cables, just pure ~~telepathic~~ visual transmission... 😵👁️⃤ 👽
 
-## How it works
 
-Open any page, choose **"Export page as QR code"** from the page menu (the three-dot
-menu at the top right of a page). A two-stage wizard opens:
+Perfect for getting a whole page or parts of it quickly from one device to another without any special set up.
 
-1. **Config stage** — choose how the page should be transformed, with a live preview: input
-   on top, transformed output below, scrolling in sync (example snippet or your real page).
-   Press **Generate QR Code(s)**.
+## See it in action
+
+<!--
+  PUBLISHING NOTE: GitHub does not render repo-tracked .mp4 files inline in a
+  README. To get the inline players below, edit this file on github.com and drag
+  each video from readme_assets/ into the editor — GitHub uploads it to its
+  attachment CDN and inserts a https://github.com/user-attachments/assets/...
+  URL. Replace each src="..." with that URL, then delete this comment.
+  The files can stay in readme_assets/ as versioned source copies (~6 MB total).
+-->
+
+**Full walkthrough**: export a page via the page menu, configure, generate, scan:
+
+<video src="./readme_assets/1_telepathy_qr_demo.mp4" controls width="640" title="TelepathyQR full demo"></video>
+
+[▶ Watch: full demo](./readme_assets/1_telepathy_qr_demo.mp4)
+
+**Single bullet**: right-click a bullet → *Export selected bullet(s) as QR code*:
+
+<video src="./readme_assets/2_single_bullet_right_click_ctx_menu_export.mp4" controls width="640" title="Bullet context-menu export"></video>
+
+[▶ Watch: bullet context-menu export](./readme_assets/2_single_bullet_right_click_ctx_menu_export.mp4)
+
+**Quick export** — `Ctrl+Shift+Q` (`⌘⇧Q` on macOS) skips the config stage:
+
+<video src="./readme_assets/3_ctrl-shift-q_shortcut_demo.mp4" controls width="640" title="Ctrl+Shift+Q quick export"></video>
+
+[▶ Watch: quick export shortcut](./readme_assets/3_ctrl-shift-q_shortcut_demo.mp4)
+
+## Usage
+
+Four ways in, one wizard out:
+
+| Entry point | Scope | Opens |
+|-------------|-------|-------|
+| Page menu (⋯) → **📱 Export page as QR code** | whole page | Config stage |
+| Right-click a bullet → **📱 Export selected bullet(s) as QR code** | that bullet and its children | Config stage |
+| **`Ctrl+Shift+Q`** / **`⌘⇧Q`** quick export | selection > zoomed bullet > page (first non-empty) | QR stage directly, with your saved options |
+| Command palette: *TelepathyQR: Export focused bullet* / *Export selection* | forced to one scope | QR stage directly, with your saved options |
+
+The wizard has two stages:
+
+1. **Config stage** — choose how the page should be transformed, with a live preview:
+   input on top, transformed output below, scrolling in sync (example snippet or your
+   real page). Your choices are remembered per graph. Press **Generate QR Code(s)**.
 2. **QR stage** — the first QR code appears immediately; the remaining parts encode in
    the background (the Next button shows a spinner until they are ready). Paginate with
    the buttons or the arrow keys; on page 1, "← Back to config" returns to the Config
-   stage. The **Text** and **Rendered** tabs show exactly what the currently displayed QR
-   code encodes.
+   stage. The **Text** and **Rendered** tabs show exactly what the currently displayed
+   QR code encodes.
 
-`← Options` returns to the Config stage with your choices intact; `Esc`, the × button or
-a click on the backdrop closes the modal.
+`← Options` returns to the Config stage with your choices intact; `Esc`, the × button
+or a click on the backdrop closes the modal.
 
 ## Export options
 
@@ -29,11 +68,12 @@ a click on the backdrop closes the modal.
 | Images | **Placeholder** \| Remove \| `\|\|marked\|\|` | `![alt](p.png)` → `[image: alt]` (or the file name when alt is empty) |
 | Tasks | **Logseq markers** \| Markdown checkboxes | `TODO`/`DONE`/… → `- [ ]`/`- [x]`; `CANCELED` stays a word |
 | External links | **Markdown** \| Plain URL | In Markdown mode bare `https://…` URLs become explicit links; Plain mode reduces `[text](url)` to `url` |
-| Refs / embeds | **Strip placeholder** \| Resolve *(coming soon)* | `((uuid))` → `[block reference]`, `{{embed [[Page]]}}` → `[embed: Page]` |
+| Refs / embeds | Strip placeholder \| **Resolve** | Resolve inlines the referenced block's content (two levels deep); Strip reduces `((uuid))` → `[block reference]`, `{{embed [[Page]]}}` → `[embed: Page]` |
+| Numbered lists | Bullets \| **Numbered** | Numbered children drop Logseq's property line and become `1.`, `a.`, `I.`, … by depth |
 
-Clean mode also drops Logseq-internal property lines (`id::`, `collapsed::`, highlight and
-spaced-repetition keys), keeps your own properties verbatim, preserves the outline shape,
-and never touches anything inside fenced code blocks. The full ruleset lives in
+Clean mode also drops Logseq-internal property lines (`id::`, `collapsed::`, highlight
+and spaced-repetition keys), keeps your own properties verbatim, preserves the outline
+shape, and never touches anything inside fenced code blocks. The full ruleset lives in
 [DESIGN.md](./DESIGN.md).
 
 ## The QR encoding
@@ -41,6 +81,30 @@ and never touches anything inside fenced code blocks. The full ruleset lives in
 Each QR code carries up to 2900 UTF-8 bytes at error-correction level L — the largest
 payload a phone camera still reads comfortably off a screen. Parts split on line
 boundaries, so concatenating all scanned parts reproduces the exported text exactly.
+
+## Installation
+
+From Logseq: **Settings → Plugins → Marketplace**, search for *TelepathyQR* (once
+listed), or download the `.zip` from the latest
+[release](https://github.com/TobiObeck/logseq-plugin-telepathy-qr/releases), unzip it,
+and load it via **Settings → Plugins → Load unpacked plugin**.
+
+**Note:** TelepathyQR reads pages from disk and therefore works with file-based
+(Markdown) graphs only; database graphs are not supported.
+
+## Known limitations
+
+These are documented decisions and known gaps; see [DESIGN.md](./DESIGN.md) for the full rationale.
+
+- **File-based (Markdown) graphs only.** Database graphs cannot be exported — the plugin reads pages from disk.
+- **Clean mode does not strip scheduling metadata.** `SCHEDULED:` / `DEADLINE:` lines and `:LOGBOOK:` drawers pass through as noise. Fix planned by extending the Clean ruleset (no new option).
+- **User properties kept verbatim.** `key:: value` lines are preserved as-is; rewriting them to `key: value` is a future feature.
+- **Raw-mode scoped exports aren't byte-identical to the file.** Block-tree exports (bullet export, quick export of selections/focused bullets) are reassembled from Logseq's editor API. Only page-level Raw exports match the on-disk file exactly.
+- **Fixed indent width.** Outline indentation is always 2 spaces per level. A configurable indent-width option is booked but not built.
+- **`CANCELED` tasks have no checkbox equivalent.** In Markdown-checkboxes mode, `CANCELED` stays as a plain-text word (there is no standard markdown equivalent). Unrecognized/custom markers also pass through verbatim.
+- **Block-ref / embed resolve depth is fixed at 2 levels.** No user-configurable depth yet.
+- **QR error-correction level is fixed at L.** Exposing L/M/Q/H is a future feature.
+- **No "reset to defaults" button.** To restore defaults, switch each option back manually.
 
 ## Development
 
@@ -96,7 +160,10 @@ extension. See [DESIGN.md](./DESIGN.md) for the complete decision record.
 
 ## Roadmap (booked, not built)
 
-- Quick export with saved defaults (skips the Config stage; introduces plugin settings)
-- Resolving block refs & embeds to their content (default depth 2)
 - User-property rewrite (`key:: value` → `key: value`), configurable indent width
 - Exposing the QR error-correction level
+
+## License
+
+[AGPL-3.0-only](./LICENSE) — fork it, change it, share it; network use counts as
+distribution. No warranty.
