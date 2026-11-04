@@ -18,19 +18,19 @@ Perfect for getting a whole page or parts of it quickly from one device to anoth
 
 **Full walkthrough**: export a page via the page menu, configure, generate, scan:
 
-<video src="./readme_assets/1_telepathy_qr_demo.mp4" controls width="640" title="TelepathyQR full demo"></video>
+<video src="https://github.com/user-attachments/assets/8ae53c19-2903-428c-b3a3-e2de07dc3ccd" controls width="640" title="TelepathyQR full demo"></video>
 
 [▶ Watch: full demo](./readme_assets/1_telepathy_qr_demo.mp4)
 
 **Single bullet**: right-click a bullet → *Export selected bullet(s) as QR code*:
 
-<video src="./readme_assets/2_single_bullet_right_click_ctx_menu_export.mp4" controls width="640" title="Bullet context-menu export"></video>
+<video src="https://github.com/user-attachments/assets/701e7598-389f-4295-8902-ae3c83411099" controls width="640" title="Bullet context-menu export"></video>
 
 [▶ Watch: bullet context-menu export](./readme_assets/2_single_bullet_right_click_ctx_menu_export.mp4)
 
 **Quick export** — `Ctrl+Shift+Q` (`⌘⇧Q` on macOS) skips the config stage:
 
-<video src="./readme_assets/3_ctrl-shift-q_shortcut_demo.mp4" controls width="640" title="Ctrl+Shift+Q quick export"></video>
+<video src="https://github.com/user-attachments/assets/ee52fe8c-9c2f-4e09-a628-87056e637fab" controls width="640" title="Ctrl+Shift+Q quick export"></video>
 
 [▶ Watch: quick export shortcut](./readme_assets/3_ctrl-shift-q_shortcut_demo.mp4)
 
